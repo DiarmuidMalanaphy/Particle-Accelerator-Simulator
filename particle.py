@@ -18,17 +18,20 @@ class Particle:
         If you don't want a trail you can either set trail_length to be 0 or set istrail to be False - setting trail to false is more efficient.
 
     """ 
-    def __init__(self,x,y,z,colour,size,speed,weight = 1, trail_length = 100, istrail = True,isParticle = True,charge = 0):
+    def __init__(self,x,y,z,colour,radius,speed,weight = 1, trail_length = 100, istrail = True,isParticle = True,charge = 0,time_speed = 1):
         self.pos = np.array([x, y, z])
         self.speed = speed
         
         self.colour = colour
-        self.size = size
+        self.radius = radius
         self.trail = []
-        self.trail_length = trail_length
+        self.trail_length = trail_length * time_speed
         self.isParticle = isParticle
         self.istrail = istrail
+        self.time_speed = time_speed
         self.last_update_time = time.time()
+
+        self.particleID = None
 
     
 
@@ -37,7 +40,7 @@ class Particle:
             current_time = time.time()
             delta_time = current_time - self.last_update_time
             self.last_update_time = current_time 
-            self.pos += self.pos * self.speed * delta_time
+            self.pos += self.pos * self.speed/self.time_speed * delta_time
         else:
             
             self.pos = new_pos
@@ -48,10 +51,13 @@ class Particle:
                 self.trail.pop(0)
 
         
-
+    def updateID(self,newID):
+        self.particleID = newID
         
 
     def draw(self):
+        self.last_update_time = time.time() 
+        
         if self.isParticle:
 
             self.draw_particle()
@@ -65,7 +71,7 @@ class Particle:
         glTranslate(self.pos[0], self.pos[1], self.pos[2])
         glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, self.colour)
         quadric = gluNewQuadric()
-        gluSphere(quadric, self.size, 32, 32)
+        gluSphere(quadric, self.radius, 32, 32)
         glPopMatrix()
 
 
