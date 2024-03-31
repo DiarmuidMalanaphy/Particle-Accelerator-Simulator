@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 
 #Anti - particle of positron - same mass however opposite charge
 class Electron(Particle):

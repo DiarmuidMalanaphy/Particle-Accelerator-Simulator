@@ -40,7 +40,7 @@ class Particle:
             current_time = time.time()
             delta_time = current_time - self.last_update_time
             self.last_update_time = current_time 
-            self.pos += self.pos * self.speed/self.time_speed * delta_time
+            self.pos += self.pos * 3 * self.speed/self.time_speed * delta_time
         else:
             
             self.pos = new_pos

@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 import numpy as np
 from OpenGL.GL import *
 from OpenGL.GLU import *

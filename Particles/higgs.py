@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 
 class HiggsBoson(Particle):
     def __init__(self, x, y, z, speed, time_speed=1):

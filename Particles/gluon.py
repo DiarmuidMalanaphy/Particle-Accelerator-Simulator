@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 #Lime: (0.75, 1.0, 0.0, 1.0)
 #The muon, on the other hand, has a mass 208 times that of an electron so its mass is approximately 1/9 of the mass of a proto
 class Gluon(Particle):

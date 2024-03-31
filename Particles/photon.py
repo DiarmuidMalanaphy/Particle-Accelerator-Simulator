@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 import numpy as np
 
 class Photon(Particle):

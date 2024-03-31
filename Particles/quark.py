@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 
 #Teal: (0.0, 0.5, 0.5, 1.0)
 class Quark(Particle):

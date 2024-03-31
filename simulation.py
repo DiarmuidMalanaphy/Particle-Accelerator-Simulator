@@ -1,101 +1,79 @@
 import time
 import glfw
-import sys
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import numpy as np
+from constants import Mode, Toggle
 
-import pybullet as p
-import pybullet_data
-from electron import Electron
-from gluon import Gluon
-from squi import Squi
-from kaon import Kaon
-from muon import Muon
-from photon import Photon
-from pion import Pion
-from wboson import WBoson
-from higgs import HiggsBoson
-#from BlackHoleAnimation import BlackHoleAnimation
-from positron import Positron
+from Particles.electron import Electron
+
+from Particles.particlegenerator import ParticleGenerator
+from Particles.positron import Positron
 from flash import Flash
-from quark import Quark
-from tau import Tau
-from blackhole import Blackhole
-from enum import Enum
+
+from Particles.blackhole import Blackhole
+
 
 import imgui
 from imgui.integrations.glfw import GlfwRenderer
-
-
-
-#Notes to take
-
-"""
-
-
-add a noise - Kaboom, 
-Make the reaction actually occur in a reaction chamber
-
-Add a background
-Add the final few particles
-
-Next addons - Make a summarisation at the end - displaying the amount of kinetic energy, number of particles created and the distribution
-
-
-Next next step - create an actual simulation of derived ATLAS data and actually understand ROOT
-
-
-    RULES speed is between 0-1 and represents 0 to c
-        - make em able to make it 2 and increase radius to 1 for that case and explode the earth
-
-        
-
-
-"""
-
-class Mode(Enum):
-    Educational  = True
-    Fun = False
-
-class Constants(Enum):
-    c = 299792458
-
-class Toggle(Enum):
-    LHCVelocity = 1
-    SynchotronVelocity = 2
-    FunMode = 3
-    Fill = 4
-    LightVelocity = 5
-    MuonVelocity = 6
-    TauVelocity = 7
-    GammaVelocity = 8
-    QuarkVelocity = 9
-    ZBosonVelocity = 10
-    HiggsBosonVelocity = 11
-    WPlusVelocity = 12
+from utility import UtilityFunctions
 
 
 
 
 
 """
-    3D Simulation of a particle accelerator with different modes for fun or education 
+    3D Simulation of a particle accelerator with different modes for fun or Education
+
+
+    The simulation is quite simplistic and mostly covers the interaction of an electron and positron colliding at relativistic speeds.
+
+    The educational mode describes the kinetic energy of the input particles and the resultant particle from each speed.
+
+    The fun mode provides a range of particles with interesting colours to observe. 
 
 """
+
+
+STARTING_EYE_POSITION = (3.0, 3.0, 25.0)
+STARTING_CENTRE_POSITION = (0.0, 0.0, 0.0)
+STARTING_UP_DIRECTION = (0.0, 1.0, 0.0)
+
+CYLINDER_RADIUS = 5
+CYLINDER_HEIGHT = 100
 
 class Simulation():
+
+    """
+    The Simulation class represents a 3D simulation of a particle accelerator with different modes for educational or experimental purposes.
+
+    The simulation focuses on the interaction of an electron and positron colliding at relativistic speeds. It provides an educational mode that describes the kinetic energy of the input particles and the resultant particles at different speeds. It also offers an experimental mode that allows for a range of particles with interesting colors and behaviors.
+
+    The simulation is built using OpenGL for 3D rendering and ImGui for the user interface. It utilizes the GLFW library for window management and input handling.
+
+
+    The Simulation class aims to provide an interactive and educational experience for exploring particle collisions and their resultant particles at different energy levels. It combines realistic physics simulations with visually appealing graphics to engage users and facilitate learning about particle physics concepts.
+
+
+    On an implementation level, this class just handles the collisions between the particles and the rendering
+    particle drawing occurs in the respective particle classes and the physics for deciding what particle to display is handled within the
+    particle generator.     
+    """
+   
     def __init__(self,mode = Mode.Educational):
+        
         self.mode = mode
         self.window_size = (1080, 900)
-        self.Fkey_pressed = False
+        
+        self.F_key_pressed = False
+        self.R_key_pressed = False
+        self.E_key_pressed = False
+        self.instructions_shown = True
+        self.utility = UtilityFunctions()
+        self.particle_generator = ParticleGenerator()
         self.start_simulating()
         
-
-
-
-
     def initialize_glfw(self):
     
         if not glfw.init():
@@ -112,11 +90,9 @@ class Simulation():
 
         return window
 
-       
-
-
-
     def logarithmic_slider(self,label, value, max_nines):
+        imgui.push_item_width(240)
+        #imgui.push_item_height(40)
         # Directly map the value to a "number of nines" representation
         if value >= 1.0:
             slider_pos = max_nines
@@ -142,11 +118,8 @@ class Simulation():
                 new_value = 1
             else:
                 new_value = 1 - 10 ** (-new_slider_pos - 1)
-
+        imgui.pop_item_width()
         return changed, new_value if changed else value
-
-
-
 
     def handle_keyboard_input(self):
         # Update camera position with arrow keys
@@ -204,17 +177,35 @@ class Simulation():
         if glfw.get_key(self.window, glfw.KEY_T) == glfw.RELEASE:
             self.t_key_pressed = False
 
+        
+        if glfw.get_key(self.window, glfw.KEY_R) == glfw.PRESS and not self.R_key_pressed:
+            self.eye_x, self.eye_y, self.eye_z = STARTING_EYE_POSITION # Position the camera slightly off-center and tilted
+            self.center_x, self.center_y, self.center_z = STARTING_CENTRE_POSITION  # Look towards the center of the cylinder
+            self.up_x, self.up_y, self.up_z = STARTING_UP_DIRECTION
+            self.set_up_camera()
+            self.R_key_pressed = True
+        if glfw.get_key(self.window, glfw.KEY_R) == glfw.RELEASE:
+            self.R_key_pressed = False
+
+        if glfw.get_key(self.window, glfw.KEY_E) == glfw.PRESS and not self.E_key_pressed:
+            self.instructions_shown = not self.instructions_shown
+            self.E_key_pressed = True
+        if glfw.get_key(self.window, glfw.KEY_E) == glfw.RELEASE:
+            self.E_key_pressed = False
+
 
 
 
         #Unfills
-        if glfw.get_key(self.window, glfw.KEY_F) == glfw.PRESS and not self.Fkey_pressed:
+        if glfw.get_key(self.window, glfw.KEY_F) == glfw.PRESS and not self.F_key_pressed:
             self.filled = not self.filled
             self.F_key_pressed = True
         if glfw.get_key(self.window, glfw.KEY_F) == glfw.RELEASE:
             self.F_key_pressed = False
 
     def draw_cylinder(self,cylinder_radius,cylinder_height,segments = 128):
+        glColor3f(0.75, 0.75, 0.75)  # Set the color of the grid lines to grey
+        glLineWidth(0.5)  # Set the width of the grid lines
         
         if self.filled:
             thickness = 0.1
@@ -258,424 +249,51 @@ class Simulation():
                 glVertex3f(x, y, cylinder_height / 2)
             glEnd()
 
+    def draw_control_instructions(self):
+        # imgui.new_frame()
+        # Define the control instructions
+        instructions = [
+            "Press SPACE to stop/start the simulation",
+            "Press T to stop/resume time",
+            "Press F to fill/unfill the cylinder",
+            "Use WASD to change your viewing angle",
+            "Use the arrow keys to modify your viewing position",
+            "Press R to return to your original position",
+            "Press E to hide/unhide control instructions"
+        ]
 
-        
+        # Set the position and size of the overlay window
+        window_width = 300
+        window_height = 150
+        window_x = (self.window_size[0])   / 3
+        window_y = (glfw.get_window_size(self.window)[1]) // 12 * 10
+        # window_x = 10
+        # window_y = 10
+
+        #window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/3
+        #window_x = (self.window_size[0] )/2
+        #window_y = (glfw.get_window_size(self.window)[1]) // 12
+        imgui.set_next_window_position(window_x, window_y)
+        imgui.set_next_window_size(window_width, window_height)
+
+        # Begin an ImGui window for the overlay
+        imgui.set_next_window_position(window_x, window_y)
+        imgui.set_next_window_size(window_width, window_height)
+        imgui.begin("Control instructions", flags=imgui.WINDOW_ALWAYS_AUTO_RESIZE)
+
+        # Render each line of the instructions
+        for line in instructions:
+            imgui.text(line)
+
+        imgui.end()
+
+        # End the ImGui window
+        # imgui.end()
 
     def rotate_vector(self, vector, angle, axis):
         cos_angle = np.cos(angle)
         sin_angle = np.sin(angle)
         return vector * cos_angle + np.cross(axis, vector) * sin_angle + axis * np.dot(axis, vector) * (1 - cos_angle)
-
-
-    
-
-
-    def __calculate_total_energy(self):
-        #m of electron/positron  is 9.1093837 × 10-31 kilograms - for computational efficiency  9.1*10*31
-        def particle_kinetic_energy(v, m):
-            """
-            Calculate the relativistic kinetic energy given a velocity and mass.
-            - v is the velocity of the particle.
-            - m is the mass of the particle.
-            Returns kinetic energy in eV.
-            """
-            
-            # Calculate the Lorentz factor
-            gamma = 1 / np.sqrt(1 - (v**2 / Constants.c.value**2))
-
-            # Calculate the relativistic kinetic energy in joules
-            KE_joules = (gamma - 1) * m * Constants.c.value**2
-
-            # Convert kinetic energy to eV
-            KE_eV = KE_joules / (1.602176634e-19)
-            return KE_eV
-
-        # Assuming positron_speed and electron_speed are defined and are fractions of the speed of light (e.g., 0.99 for 99% of the speed of light)
-        m = 9.1e-31  # Mass of electron/positron in kg
-        
-        #positron_speed = self.relative_particle_speed * c  # relative% speed of light
-        #electron_speed = self.relative_particle_speed * c  # relative% speed of light
-        unified_speed = self.relative_particle_speed * Constants.c.value # Unify them for efficiency
-
-        # Calculate kinetic energy for both particles
-        #positron_kinetic_energy = particle_kinetic_energy(positron_speed, m)
-        total_kinetic_energy_eV = 2 * particle_kinetic_energy(unified_speed, m)
-
-        # Sum of kinetic energies in eV
-        #total_kinetic_energy_eV = positron_kinetic_energy + electron_kinetic_energy
-
-        # Convert total kinetic energy to GeV
-        
-        #total_kinetic_energy_GeV = total_kinetic_energy_eV / 10**9
-        #total_kinetic_energy_MeV = total_kinetic_energy_eV / 10**6
-
-        #print(f"Total Kinetic Energy: {total_kinetic_energy_MeV} MeV, or {total_kinetic_energy_GeV} GeV")
-        
-        #https://public-archive.web.cern.ch/en/lhc/Facts-en.html
-        rest_energy_eV =  2 * m * (Constants.c.value**2) / (1.602176634e-19)
-
-        total_energy_eV = total_kinetic_energy_eV + rest_energy_eV 
-
-        total_energy_MeV = total_energy_eV / 10**6
-
-        total_energy_GeV = total_energy_eV / 10**9
-
-
-        
-
-        #print(f"Total Kinetic Energy: {total_energy_MeV} MeV, or {total_energy_GeV} GeV")
-
-        return(total_energy_eV,total_energy_MeV,total_energy_GeV)
-        
-
-    def generate_particles(self,mode):
-
-        total_energy_eV, total_energy_MeV, total_energy_GeV = self.__calculate_total_energy()
-
-        if self.mode.value == Mode.Educational.value: # Educational
-            return self.generate_educational_particles(total_energy_eV,total_energy_MeV,total_energy_GeV)
-        
-        else:
-            return self.generate_fun_particles(total_energy_eV,total_energy_MeV,total_energy_GeV)
-
-
-    def generate_fun_particles(self, total_energy_eV, total_energy_MeV, total_energy_GeV):
-        particles = []
-        remaining_energy_eV = total_energy_eV
-        max_particles = 100
-        energy_factor = (1-self.relative_particle_speed)*12800
-        #print(energy_factor)
-
-        if self.relative_particle_speed == 1.0:
-            # Create a black hole instead of particles
-            pos = self.calculate_mid_point_positron_electron()
-            black_hole = Blackhole(pos[0],pos[1],pos[2] ,1, time_speed = self.time_speed)
-            #self.flash_manager.add_flash(position=[0, 0, 0], size=3, brightness=1, duration=120)
-            return [black_hole]
-         
-        
-
-        while remaining_energy_eV > 0 and len(particles) < max_particles:
-            if np.random.rand() < 0.7:
-                particle_type = np.random.choice(["Photon","Pion", "Muon", "Squi"])
-            else:
-                particle_type = np.random.choice(["Tau", "Gluon", "Quark", "HiggsBoson", "WBoson"], p=[0.3, 0.3, 0.3, 0.05, 0.05])
-
-            angle_xy = np.random.uniform(0, 2 * np.pi)
-            angle_z = np.random.uniform(0, np.pi)
-            speed = np.random.uniform(0.2, 1)
-
-            particle_x = np.cos(angle_xy) * np.sin(angle_z) * speed
-            particle_y = np.sin(angle_xy) * np.sin(angle_z) * speed
-            particle_z = np.cos(angle_z) * speed
-
-            if particle_type == "Photon":
-                particle = Photon(particle_x, particle_y, particle_z, speed,time_speed = self.time_speed)
-                particle_radius = 0.05
-                particle_energy = 0.01 * total_energy_eV * energy_factor
-            
-            elif particle_type == "Muon":
-                particle = Muon(particle_x, particle_y, particle_z, speed,time_speed = self.time_speed)
-                particle_radius = 0.2
-                particle_energy = 0.04 * total_energy_eV * energy_factor
-            elif particle_type == "Tau":
-                particle = Tau(particle_x, particle_y, particle_z, speed,time_speed = self.time_speed)
-                particle_radius = 0.25
-                particle_energy = 0.05 * total_energy_eV * energy_factor
-            elif particle_type == "Gluon":
-                particle = Gluon(particle_x, particle_y, particle_z, speed,time_speed = self.time_speed)
-                particle_radius = 0.3
-                particle_energy = 0.06 * total_energy_eV * energy_factor
-            
-            elif particle_type == "Pion":
-                particle = Pion(particle_x, particle_y, particle_z, speed,time_speed = self.time_speed)
-                particle_energy = 0.03 * total_energy_eV * energy_factor
-            
-            elif particle_type == "Squi":  # Create Squi particle
-                particle = Squi(particle_x, particle_y, particle_z, speed, time_speed=self.time_speed)
-                particle_energy = 0.02 * total_energy_eV * energy_factor
-            elif particle_type == "HiggsBoson":
-                particle = HiggsBoson(particle_x, particle_y, particle_z, speed, time_speed=self.time_speed)
-                particle_energy = 0.1 * total_energy_eV * energy_factor
-            elif particle_type == "WBoson":
-                particle = WBoson(particle_x, particle_y, particle_z, speed, time_speed=self.time_speed)
-                particle_energy = 0.08 * total_energy_eV * energy_factor
-
-            else:  # Quark
-
-                quark_masses = {
-                'D': 4.9e6,  # Down quark mass in eV/c^2 (using the average of the range)
-                'C': 1.270e9,  # Charm quark mass in eV/c^2
-                'S': 1.01e8,  # Strange quark mass in eV/c^2
-                }
-
-                quark_types = ['D', 'C', 'S']
-                quark_weights = [quark_masses[q] for q in quark_types]
-                total_weight = sum(quark_weights)
-                quark_probs = [w / total_weight for w in quark_weights]
-
-                quark_type = np.random.choice(quark_types, p=quark_probs)
-                particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=self.time_speed)
-                particle_energy = 0.07 * total_energy_eV * energy_factor
-            remaining_energy_eV -= particle_energy
-            
-            particles.append(particle)
-                
-
-        self.flash_manager.add_flash(
-            position= self.calculate_mid_point_positron_electron(),
-            size=2,
-            brightness=10,
-            duration=3
-        )
-
-        return particles
-        
-
-
-    def generate_educational_particles(self,total_energy_eV, total_energy_MeV, total_energy_GeV):
-        
-
-        particles = []
-
-        def generate_directions(num_particles):
-            self.flash_manager.add_flash(position=[(self.positron_pos[0] + self.electron_pos[0]) / 2, (self.positron_pos[1] + self.electron_pos[1]) / 2, (self.positron_pos[2] + self.electron_pos[2]) / 2], size=0.2, brightness=1.0, duration=2)
-            directions = []
-            total_vector = np.array([0.0, 0.0, 0.0])
-
-            for _ in range(num_particles - 1):
-                # Generate a random 3D unit vector
-                phi = np.random.uniform(0, 2 * np.pi)*0.5
-                theta = np.random.uniform(0,  np.pi)*0.5
-                x = np.sin(theta) * np.cos(phi)
-                y = np.sin(theta) * np.sin(phi)
-                z = np.cos(theta)
-                
-                direction = np.array([x, y, z])
-                directions.append(direction)
-                total_vector += direction
-
-            # Calculate the last direction to ensure momentum conservation
-            last_direction = -total_vector
-            directions.append(last_direction)
-
-            return directions
-
-        if total_energy_MeV<210: # Photons
-            
-            
-            self.flash_manager.add_flash(position=[(self.positron_pos[0] + self.electron_pos[0]) / 2, (self.positron_pos[1] + self.electron_pos[1]) / 2, (self.positron_pos[2] + self.electron_pos[2]) / 2], size=0.2, brightness=1.0, duration=2)
-            # Any number of opposite photons can be created, conserving momentum
-            choice = np.random.choice([2, 3, 4, 5], p=[0.53, 0.32, 0.11, 0.04])
-            
-            
-            self.result_text = f"The resultant energy wasn't enough to create a new particle\nand {choice} photons were emitted."
-            directions = generate_directions(choice)
-
-            
-
-            for direction in directions:
-                speed = 1
-                particle_x = direction[0] * speed
-                particle_y = direction[1] * speed
-                particle_z = direction[2] * speed
-                particle = Photon(particle_x,particle_y,particle_z,1,time_speed = self.time_speed)
-                particles.append(particle)
-                
-
-
-
-        elif total_energy_GeV<3.4 and total_energy_MeV>210:#Muons
-
-            self.result_text = "The rest and kinetic energy of the particle was enough to\nproduce two Muons"
-            directions = generate_directions(2)# <- for the two resulting muons 
-
-            muon_m = 1.883531627e-28
-            rest_energy_eV_muon =  muon_m * (Constants.c.value**2) / (1.602176634e-19)
-            kinetic_energy_per_muon = (total_energy_eV - 2 * rest_energy_eV_muon) / 2
-
-            
-            v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_muon / (rest_energy_eV_muon)) + 1))**2)
-            speed = v/Constants.c.value
-            self.flash_manager.add_flash(position = self.calculate_mid_point_positron_electron(), size=0.5, brightness=10*speed, duration=2)
-            for direction in directions:
-                particle_x = direction[0] * speed
-                particle_y = direction[1] * speed
-                particle_z = direction[2] * speed
-                particle = Muon(particle_x,particle_y,particle_z,speed,time_speed = self.time_speed)
-                particles.append(particle)
-            
-
-
-        
-
-
-        elif total_energy_GeV>=3.4 and total_energy_GeV<9.4: #Tau
-            self.result_text = "The rest and kinetic energy of the particle resulted in\ntwo Tau particles"
-            directions = generate_directions(2)
-            
-            tau_m = 3.167e-27
-            rest_energy_eV_tau =  tau_m * (Constants.c.value**2) / (1.602176634e-19)
-            kinetic_energy_per_tau = (total_energy_eV - 2 * rest_energy_eV_tau) / 2
-            v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_tau / (rest_energy_eV_tau)) + 1))**2)
-            speed = v/Constants.c.value
-            self.flash_manager.add_flash(position=self.calculate_mid_point_positron_electron(), size=0.5, brightness=10*speed, duration=2)
-            for direction in directions:
-                
-                particle_x = direction[0] * speed
-                particle_y = direction[1] * speed
-                particle_z = direction[2] * speed
-                particle = Tau(particle_x,particle_y,particle_z,speed,time_speed = self.time_speed)
-                particles.append(particle)
-
-        elif total_energy_GeV>=9.4 and total_energy_GeV<30: #gamma gluon gluon
-            self.result_text = "The rest and kinetic energy of the particle produced\na quantum gamma particle, decaying into three\nhigh energy gluons"
-            directions = generate_directions(3)
-            speed = 1.3 # C -> the gluons are incredibly high powered (I modified it to make it cooler and make it slightly more explosive and fast)
-            self.flash_manager.add_flash(position=[(self.positron_pos[0] + self.electron_pos[0]) / 2, (self.positron_pos[1] + self.electron_pos[1]) / 2, (self.positron_pos[2] + self.electron_pos[2]) / 2], size=2, brightness=10*speed, duration=3)
-            for direction in directions:
-                
-                particle_x = direction[0] * speed
-                particle_y = direction[1] * speed
-                particle_z = direction[2] * speed
-                particle = Gluon(particle_x,particle_y,particle_z,speed,time_speed = self.time_speed)
-                particles.append(particle)
-            
-
-        elif total_energy_GeV >= 30 and total_energy_GeV < 80:  # quark quark gluon
-            directions = generate_directions(3)
-            particle_x = directions[2][0] * 1
-            particle_y = directions[2][1] * 1
-            particle_z = directions[2][2] * 1
-            particle = Gluon(particle_x, particle_y, particle_z, 1, time_speed=self.time_speed)
-            particles.append(particle)
-
-            quark_masses = {
-                'D': 4.9e6,  # Down quark mass in eV/c^2 (using the average of the range)
-                'C': 1.270e9,  # Charm quark mass in eV/c^2
-                'S': 1.01e8,  # Strange quark mass in eV/c^2
-                # 'T': 1.72e11  # Top quark mass in eV/c^2  WE EXCLUDE THIS ONE BECAUSE THE MASS IS TOO HIGH
-            }
-
-            quark_names = {
-                'D': "Down",
-                'C': "Charm",
-                'S': "Strange",
-            }
-
-            quark_types = ['D', 'C', 'S']
-
-            chosen_quarks = np.random.choice(quark_types, size=2, replace=False)
-
-            if chosen_quarks[0] != chosen_quarks[1]:
-                self.result_text = f"The rest and kinetic energy of the particle was enough\nto produce a gluon and two Quarks, {quark_names[chosen_quarks[0]]} and {quark_names[chosen_quarks[1]]}"
-            else:
-                self.result_text = f"The rest and kinetic energy of the particle was enough\nto produce two {quark_names[chosen_quarks[0]]} Quarks and a gluon"
-
-            total_quarks_energy_eV = total_energy_eV * 0.9  # Allocate 90% of the total energy to the quarks
-            gluon_energy_eV = total_energy_eV - total_quarks_energy_eV  # Allocate the remaining energy to the gluon
-
-            for i, quark_type in enumerate(chosen_quarks):
-                quark_mass = quark_masses[quark_type]
-                rest_energy_eV_quark = quark_mass
-
-                quark_total_energy_eV = total_quarks_energy_eV / 2
-
-                kinetic_energy_per_quark = quark_total_energy_eV - rest_energy_eV_quark
-
-                v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_quark / (rest_energy_eV_quark)) + 1))**2)
-                speed = v / Constants.c.value
-
-                particle_x = directions[i][0] * speed
-                particle_y = directions[i][1] * speed
-                particle_z = directions[i][2] * speed
-
-                particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=self.time_speed)
-                particles.append(particle)
-
-            self.flash_manager.add_flash(
-                position=self.calculate_mid_point_positron_electron(),
-                size=0.5,
-                brightness=5,
-                duration=2
-            )
-    
-
-        #http://www.quantumdiaries.org/2010/05/10/the-z-boson-and-resonances/
-        elif total_energy_GeV>=80 and total_energy_GeV<124: #Z Boson -> produces two muons
-
-            directions = generate_directions(2)# <- for the two resulting muons 
-            self.result_text = f"The rest and kinetic energy of the particle was enough\nto produce the Z Boson however, due to its quantum\nnature it decayed instantly into 2 Muons"
-            muon_m = 1.883531627e-28
-            rest_energy_eV_muon =  muon_m * (Constants.c.value**2) / (1.602176634e-19)
-            kinetic_energy_per_muon = (total_energy_eV - 2 * rest_energy_eV_muon) / 2
-
-            
-            v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_muon / (rest_energy_eV_muon)) + 1))**2)
-            speed = v/Constants.c.value
-            self.flash_manager.add_flash(position=self.calculate_mid_point_positron_electron(), size=0.5, brightness=10*speed, duration=2)
-            for direction in directions:
-                particle_x = direction[0] * speed
-                particle_y = direction[1] * speed
-                particle_z = direction[2] * speed
-                particle = Muon(particle_x,particle_y,particle_z,speed,time_speed = self.time_speed)
-                particles.append(particle)
-            pass
-
-        elif total_energy_GeV>=124 and total_energy_GeV< 160: # Higgs Boson
-            
-            
-
-            
-            choice = np.random.choice([2, 3, 4, 5, 6], p=[0.4, 0.3, 0.15, 0.1,0.05])
-            self.result_text = f"The rest and kinetic energy of the particle was enough\nto produce the Higgs Boson however, due to its quantum\nnature it decayed instantly into {choice} photons "
-            directions = generate_directions(choice)
-            for direction in directions:
-                speed = 1
-                particle_x = direction[0] * speed
-                particle_y = direction[1] * speed
-                particle_z = direction[2] * speed
-                particle = Photon(particle_x,particle_y,particle_z,1,time_speed = self.time_speed)
-                particles.append(particle)
-                
-            
-            self.flash_manager.add_flash(position=self.calculate_mid_point_positron_electron(), size=0.5, brightness=10*speed, duration=3)
-
-        elif total_energy_GeV>=160 and total_energy_GeV< 200: #W+ Boson
-            directions = generate_directions(choice)
-            wmass = 1e-25
-            rest_energy_eV_w =  wmass * (Constants.c.value**2) / (1.602176634e-19)
-
-            kinetic_energy_per_muon = (total_energy_eV - 2 * rest_energy_eV_muon) / 2
-
-            
-            v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_muon / (rest_energy_eV_muon)) + 1))**2)
-            speed = v/Constants.c.value
-            self.flash_manager.add_flash(position = self.calculate_mid_point_positron_electron(), size=0.5, brightness=10*speed, duration=2)
-            for direction in directions:
-                particle_x = direction[0] * speed
-                particle_y = direction[1] * speed
-                particle_z = direction[2] * speed
-                particle = WBoson(particle_x,particle_y,particle_z,speed,time_speed = self.time_speed)
-                particles.append(particle)
-            pass
-
-        else:#Who knows
-
-            self.flash_manager.add_flash(position=self.calculate_mid_point_positron_electron(), size=10, brightness=10, duration=4)
-            self.result_text = "The rest and kinetic energy of the particle is\nmore than the standard model predicts."
-            
-            return[]
-            
-        return(particles)
-    
-    
-    def calculate_mid_point_positron_electron(self):
-        position=[(self.positron_pos[0] + self.electron_pos[0]) / 2,
-                    (self.positron_pos[1] + self.electron_pos[1]) / 2,
-                    (self.positron_pos[2] + self.electron_pos[2]) / 2]
-        return(position)
-        
 
     def handle_intro_keys(self):
         if glfw.get_key(self.window, glfw.KEY_SPACE) == glfw.PRESS:
@@ -721,12 +339,205 @@ class Simulation():
         if ticked.value == Toggle.LightVelocity.value:
             self.infinite_energy_toggle = True
 
+    def draw_control_panel(self):
+        # imgui.new_frame()
+        def draw_checkbox_with_tooltip( label, variable, tooltip_text):
+            clicked, variable = imgui.checkbox(label, variable)
+            imgui.same_line()
+            imgui.text("(i)")
+            if imgui.is_item_hovered():
+                imgui.set_tooltip(tooltip_text)
+            return clicked, variable
+        window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/3
+                
+        window_x = (self.window_size[0]) * 0.3  // 5
+        window_y = (glfw.get_window_size(self.window)[1]) // 48
+        imgui.set_next_window_position(window_x, window_y)
+        imgui.set_next_window_size(window_width, window_height)
+
+        imgui.begin("Particle Accelerator Control", flags=imgui.WINDOW_ALWAYS_AUTO_RESIZE)
+        
+    
+        ##########SLIDERS###########
+
+        ### DEFINING PARTICLE VELOCITY
+        changed, self.relative_particle_speed = self.logarithmic_slider(
+            "Particle Speed",
+            self.relative_particle_speed,
+            15  # Max number of nines
+        )
+        if changed:
+            self.reset_checkboxes()
+
+        ### DEFINING THE TIME SPEED (HOW SLOW/FAST THE SIMULATION GOES)
+        percentage = np.round(((self.time_speed/10)-0.6)*100)
+        if percentage>=0:
+
+            formatted_time_speed = f"Time Modifier +{percentage}%"
+        else:
+            formatted_time_speed = f"Time Modifier {percentage}%"
+        imgui.push_item_width(240)
+        changed, self.time_speed = imgui.slider_int(formatted_time_speed, self.time_speed, 1, 11)
+        imgui.pop_item_width()
+        
+        
+        
+        imgui.columns(2, 'checkboxes', False)
+
+
+        ##########TICKBOXES##################
+
+        clicked, self.LHC_velocity_toggle = draw_checkbox_with_tooltip("Velocity of LHC",self.LHC_velocity_toggle,"Velocity achieved by the Large Hadron Collider")
+       
+        if clicked:
+            if self.LHC_velocity_toggle:
+                self.reset_checkboxes(ticked = Toggle.LHCVelocity)
+                # https://public-archive.web.cern.ch/en/lhc/Facts-en.html
+                self.relative_particle_speed = 0.999999991
+            else:
+                self.relative_particle_speed = 0.9
+
+        
+        clicked, self.synchotron_velocity_toggle = draw_checkbox_with_tooltip("Velocity of Synchotron",self.synchotron_velocity_toggle,"Velocity achieved by the Synchotron, the earliest collider at CERN")
+       
+        if clicked:
+            if self.synchotron_velocity_toggle:
+                self.reset_checkboxes(ticked = Toggle.SynchotronVelocity)
+                #https://cds.cern.ch/record/1479637/files/1959_E_p29.pdf
+                
+                self.relative_particle_speed = 0.9993
+            else:
+                self.relative_particle_speed = 0.9
+
+        clicked, self.enable_fun_mode = draw_checkbox_with_tooltip("Experimental Mode",self.enable_fun_mode,"Makes the collisions more interesting and not true to life")
+       
+        
+        if clicked:
+            if self.enable_fun_mode:
+                self.mode = Mode.Fun
+            else:
+                self.mode = Mode.Educational
+                
+                
+
+        ###SPEED OF LIGHT TOGGLEBOX 
+        clicked, self.infinite_energy_toggle = draw_checkbox_with_tooltip("Speed of Light",self.infinite_energy_toggle,"Accelerates the particles to the speed of light")
+        
+        
+        if clicked:
+            if self.infinite_energy_toggle:
+                self.reset_checkboxes(ticked = Toggle.LightVelocity)
+                self.relative_particle_speed = 1.0
+            else:
+                self.relative_particle_speed = 0.9
+
+        ### Filled in cylinder togglebox
+        clicked, self.filled = draw_checkbox_with_tooltip("Fill in Cylinder",self.filled,"Fills in the gaps between the cylinder")
+       
+        ### MUON VELOCITY TOGGLEBOX
+        clicked, self.muon_velocity_toggle = draw_checkbox_with_tooltip("Muon Velocity",self.muon_velocity_toggle,"Accelerates the particles to a velocity to create Muons")
+        
+
+        if clicked:
+            if self.muon_velocity_toggle:
+                self.reset_checkboxes(ticked = Toggle.MuonVelocity)
+                self.relative_particle_speed = 0.9999999
+            else:
+                self.relative_particle_speed = 0.9
+                
+
+        
+        imgui.next_column()
+
+        ### TAU VELOCITY TOGGLEBOX
+        clicked, self.tau_velocity_toggle = draw_checkbox_with_tooltip("Tau Velocity",self.tau_velocity_toggle,"Accelerates the particles to a velocity to create Tau particles")
+       
+        
+        if clicked:
+            if self.tau_velocity_toggle:
+                self.reset_checkboxes(ticked = Toggle.TauVelocity)
+                self.relative_particle_speed = 0.99999997
+            else:
+                self.relative_particle_speed = 0.9
+                
+        ### Gamma gluon VELOCITY TOGGLEBOX
+        clicked, self.gamma_gluon_toggle = draw_checkbox_with_tooltip("Gamma-Gluon-Gluon Velocity",self.gamma_gluon_toggle,"Accelerates the particles to a velocity to create Gluons")
+       
+
+        if clicked:
+            if self.gamma_gluon_toggle:
+                self.reset_checkboxes(ticked = Toggle.GammaVelocity)
+                self.relative_particle_speed = 0.999999997
+            else:
+                self.relative_particle_speed = 0.9
+        
+        ### Quark VELOCITY TOGGLEBOX
+        clicked, self.quark_toggle = draw_checkbox_with_tooltip("Quark Velocity",self.quark_toggle,"Accelerates the particles to a velocity to create Quarks")
+        
+
+        if clicked:
+            if self.quark_toggle:
+                self.reset_checkboxes(ticked = Toggle.QuarkVelocity)
+                self.relative_particle_speed = 0.9999999997
+            else:
+                self.relative_particle_speed = 0.9
+
+        
+        
+        
+        
+        ### Z-Boson VELOCITY TOGGLEBOX
+        clicked, self.ZBoson_toggle = draw_checkbox_with_tooltip("ZBoson Velocity",self.ZBoson_toggle,"Accelerates the particles to a velocity to create ZBosons")
+
+        if clicked:
+            if self.ZBoson_toggle:
+                self.reset_checkboxes(ticked = Toggle.ZBosonVelocity)
+                self.relative_particle_speed = 0.99999999994
+            else:
+                self.relative_particle_speed = 0.9
+        
+        ### Higgs Boson VELOCITY TOGGLEBOX
+        clicked, self.higgs_toggle = draw_checkbox_with_tooltip("Higgs Boson Velocity",self.higgs_toggle,"Accelerates the particles to a velocity to produce the Higgs Boson")
+       
+
+        if clicked:
+            if self.higgs_toggle:
+                self.reset_checkboxes(ticked = Toggle.HiggsBosonVelocity)
+                self.relative_particle_speed = 0.99999999997
+            else:
+                self.relative_particle_speed = 0.9
+
+        ### WPlus VELOCITY TOGGLEBOX
+        clicked, self.WPlus_toggle = draw_checkbox_with_tooltip("WPlus Velocity",self.WPlus_toggle,"Accelerates the particles to a velocity to produce the WPlus Boson")
+        
+        if clicked:
+            if self.WPlus_toggle:
+                self.reset_checkboxes(ticked = Toggle.WPlusVelocity)
+                self.relative_particle_speed = 0.999999999992
+            else:
+                self.relative_particle_speed = 0.9
+        
+        
+
+        imgui.dummy(1, 20)  # Add some space before the button (vertical padding)
+        imgui.columns(3, "button_col", False)  # Create 3 columns; the button will be in the middle
+        imgui.set_column_width(0, 120)  # Adjust the width of the left column
+        imgui.next_column()  # Move to the middle column
+        imgui.set_column_width(1, 200)  # Adjust the middle column where the button will be
+
+        # Set the button size
+        if imgui.button("Start Simulation", width=200, height=40):  # Adjust width and height as needed
+            self.simulating = True
 
         
 
+        
+        imgui.columns(1)
+        imgui.end()
 
+        # imgui.end()
 
-    def introduction_page(self,img_impl):
+    def introduction_page(self, img_impl):
         self.intro_page = True
 
 
@@ -780,9 +591,70 @@ class Simulation():
             img_impl.render(imgui.get_draw_data())
             glfw.swap_buffers(self.window)
 
+    def collision_results_window(self, collision_results):
+        
+        # Set the initial position and size of the collision results window
+        window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/3
+        window_x = (self.window_size[0] ) * 2.5  // 5
+        window_y = (glfw.get_window_size(self.window)[1]) // 48
+        imgui.set_next_window_position(window_x, window_y)
+        imgui.set_next_window_size(window_width, window_height)
 
-    
+        imgui.begin("Collision Results", True, imgui.WINDOW_ALWAYS_AUTO_RESIZE)
 
+        # Add padding and spacing for better visual layout
+        imgui.push_style_var(imgui.STYLE_FRAME_PADDING, (10, 10))
+        imgui.push_style_var(imgui.STYLE_ITEM_SPACING, (10, 10))
+
+        
+        
+
+        # Display the total kinetic energy with a colored background
+        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.2, 0.2, 0.2, 1.0)  # Set background color to dark gray
+        energy_text_formatted = f"Total Kinetic Energy: {collision_results['energy_text']}"
+        imgui.text_colored(energy_text_formatted, 1.0, 1.0, 1.0 )  # Set text color to white
+        imgui.pop_style_color()
+
+        imgui.spacing()
+
+        # Display the resultant particles with a colored background
+        imgui.text("Resultant Particles:")
+        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.3, 0.3, 0.3, 1.0)  # Set background color to a slightly lighter gray
+        imgui.text_colored(collision_results['result_text'], 1.0, 0.0, 1.0 )  # Set text color to yellow
+        imgui.pop_style_color()
+
+        imgui.spacing()
+        collision_results_window = True
+        if imgui.button("Close"):
+            collision_results_window = False
+
+        imgui.pop_style_var(2)  # Pop the style variables for padding and spacing
+        imgui.end()
+        # imgui.end()
+        return(collision_results_window)
+
+    def set_up_camera(self):
+        self.camera_pos = np.array([self.eye_x, self.eye_y, self.eye_z], dtype=np.float32)
+        self.camera_front = np.array([self.center_x - self.eye_x, self.center_y - self.eye_y, self.center_z - self.eye_z], dtype=np.float32)
+        self.camera_front = self.camera_front / np.linalg.norm(self.camera_front)
+        self.camera_up = np.array([self.up_x, self.up_y, self.up_z], dtype=np.float32)
+        self.camera_position_speed = 0.3
+        self.camera_angle_speed = 1
+        
+    def restart_simulation(self):
+        self.positron_pos = [0, 0, np.round((-CYLINDER_HEIGHT / 2 + 1.5))]  # Adjust start position
+        self.electron_pos = [0, 0, np.round(CYLINDER_HEIGHT / 2 - 1.5)]
+        
+        
+        self.collided = False
+        positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
+        electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
+        
+        collision_results_window = False
+        particles_created = False
+        particles = []
+
+        return(positron, electron, particles, collision_results_window, particles_created)
 
     def generate_stars(self, num_stars):
         stars = []
@@ -793,7 +665,6 @@ class Simulation():
             stars.append((x, y, z))
         return stars
 
-
     def draw_stars(self):
         glPointSize(2.0)  # Set the size of the star points
         glColor3f(1.0, 1.0, 1.0)  # Set the color of the stars to white
@@ -802,8 +673,9 @@ class Simulation():
             glVertex3f(star[0]*100, star[1]*100, star[2] * 100)  # Scale down the z-coordinate
         glEnd()
    
-
     def start_simulating(self):
+
+        ###   THIS WHOLE SECTION IS JUST INITIALISING THE SIMULATION
         self.window = self.initialize_glfw()
         #self.black_hole_animation = BlackHoleAnimation("blackhole.glb")
         
@@ -829,61 +701,50 @@ class Simulation():
         glMatrixMode(GL_MODELVIEW)
 
 
+        
+
         # Set camera position and orientation (inside the cylinder, looking towards the center)
-        self.eye_x, self.eye_y, self.eye_z = 3.0, 3.0, 25.0  # Position the camera slightly off-center and tilted
-        self.center_x, self.center_y, self.center_z = 0.0, 0.0, 0.0  # Look towards the center of the cylinder
-        self.up_x, self.up_y, self.up_z = 0.0, 1.0, 0.0  # Set the up direction
-        gluLookAt(self.eye_x, self.eye_y, self.eye_z, self.center_x, self.center_y, self.center_z, self.up_x, self.up_y, self.up_z)
+        self.eye_x, self.eye_y, self.eye_z = STARTING_EYE_POSITION # Position the camera slightly off-center and tilted
+        
+        self.center_x, self.center_y, self.center_z = STARTING_CENTRE_POSITION  # Look towards the center of the cylinder
+        self.up_x, self.up_y, self.up_z = STARTING_UP_DIRECTION # Set the up direction
+        #gluLookAt(self.eye_x, self.eye_y, self.eye_z, self.center_x, self.center_y, self.center_z, self.up_x, self.up_y, self.up_z)
+        self.set_up_camera()
 
-
-        self.camera_pos = np.array([self.eye_x, self.eye_y, self.eye_z], dtype=np.float32)
-        self.camera_front = np.array([self.center_x - self.eye_x, self.center_y - self.eye_y, self.center_z - self.eye_z], dtype=np.float32)
-        self.camera_front = self.camera_front / np.linalg.norm(self.camera_front)
-        self.camera_up = np.array([self.up_x, self.up_y, self.up_z], dtype=np.float32)
-        self.camera_position_speed = 0.3
-        self.camera_angle_speed = 1
+        
 
 
         self.flash_manager = Flash()
-
-
-        physicsClient = p.connect(p.DIRECT)
-        # physicsClient = p.connect(p.GUI)
-        cylinder_radius = 5
-        cylinder_height = 100
-
-
-        self.positron_pos = [0, 0, np.round((-cylinder_height / 2 + 1.5))]  # Adjust start position
-        self.electron_pos = [0, 0, np.round(cylinder_height / 2 - 1.5)]  # Adjust start position
-        
-
-
-        
-
+        self.positron_pos = [0, 0, np.round((-CYLINDER_HEIGHT / 2 + 1.5))]  # Adjust start position
+        self.electron_pos = [0, 0, np.round(CYLINDER_HEIGHT / 2 - 1.5)]  # Adjust start position
         self.relative_particle_speed = 0.9
-
-        particles = []
-        
+        particles = []    
         self.collided = False
         particles_created = False
         self.simulating = False
         self.time_stop = False
-        enable_fun_mode = False
+        self.enable_fun_mode = False
         self.filled = False
-        
         self.reset_checkboxes()
         positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
         electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
-        self.time_speed = 5
+        self.time_speed = 6
         black_hole = False
         collision_results_window = False
         self.stars = self.generate_stars(1000)
+
+
+        ##### RUNNING THE SIMULATION
         
         while not glfw.window_should_close(self.window):
+            
+            imgui.new_frame()
             glfw.poll_events()
+            if self.instructions_shown:
+                self.draw_control_instructions()
             
 
-            # Handle keyboard input
+            
              
             
             glClearColor(0, 0, 0, 1.0)  # Set the background color to black
@@ -897,206 +758,30 @@ class Simulation():
                     self.camera_up[0], self.camera_up[1], self.camera_up[2])
             
 
+            #Draw the background
             self.draw_stars()
-
-
-            # # Draw the grid lines on the cylinder
-            glColor3f(0.75, 0.75, 0.75)  # Set the color of the grid lines to green
-            glLineWidth(0.5)  # Set the width of the grid lines
-
             
-            self.draw_cylinder(cylinder_radius,cylinder_height)
+            self.draw_cylinder(CYLINDER_RADIUS,CYLINDER_HEIGHT)
             
             
             
 
             
-                # Animate protons moving towards each other in 3D space until they collide
-            imgui.new_frame()
+            
+            
             if not self.simulating:
+                
                 self.handle_keyboard_input()
                 impl.process_inputs()
-                
-                window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/4
-                
-                window_x = (self.window_size[0]) * 0.3  // 5
-                window_y = (glfw.get_window_size(self.window)[1] - window_height) // 4
-                imgui.set_next_window_position(window_x, window_y)
-                imgui.set_next_window_size(window_width, window_height)
-
-                imgui.begin("Particle Accelerator Control", flags=imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-                
-            
-                ##########SLIDERS###########
-
-                ### DEFINING PARTICLE VELOCITY
-                changed, self.relative_particle_speed = self.logarithmic_slider(
-                    "Particle Speed",
-                    self.relative_particle_speed,
-                    15  # Max number of nines
-                )
-                if changed:
-                    self.reset_checkboxes()
-
-                ### DEFINING THE TIME SPEED (HOW SLOW/FAST THE SIMULATION GOES)
-                
-                formatted_time_speed = f"Time Modifier {np.round(((self.time_speed/10)-0.5)*100)}%"
-                changed, self.time_speed = imgui.slider_int(formatted_time_speed, self.time_speed, 1, 10)
+                self.draw_control_panel()
                 
                 
-                
-                
-                imgui.columns(2, 'checkboxes', False)
-
-
-                ##########TICKBOXES##################
-
-                clicked, self.LHC_velocity_toggle = imgui.checkbox("Velocity of LHC", self.LHC_velocity_toggle)
-                if clicked:
-                    if self.LHC_velocity_toggle:
-                        self.reset_checkboxes(ticked = Toggle.LHCVelocity)
-                        # https://public-archive.web.cern.ch/en/lhc/Facts-en.html
-                        self.relative_particle_speed = 0.999999991
-                    else:
-                        self.relative_particle_speed = 0.9
-
-                
-
-                clicked, self.synchotron_velocity_toggle = imgui.checkbox("Velocity of Synchotron", self.synchotron_velocity_toggle)
-                if clicked:
-                    if self.synchotron_velocity_toggle:
-                        self.reset_checkboxes(ticked = Toggle.SynchotronVelocity)
-                        #https://cds.cern.ch/record/1479637/files/1959_E_p29.pdf
-                        
-                        self.relative_particle_speed = 0.9993
-                    else:
-                        self.relative_particle_speed = 0.9
-
-
-                clicked, enable_fun_mode = imgui.checkbox("Fun Mode", enable_fun_mode)
-                if clicked:
-                    if enable_fun_mode:
-                        self.mode = Mode.Fun
-                        #self.relative_particle_speed = 0.9
-                    else:
-                        self.mode = Mode.Educational
-                        
-                        #self.relative_particle_speed = 0.9
-
-                ###SPEED OF LIGHT TOGGLEBOX <- behaves strangely because I've only allowed it in fun mode.
-                
-                clicked, self.infinite_energy_toggle = imgui.checkbox("Speed of Light", self.infinite_energy_toggle)
-                if clicked:
-                    if self.infinite_energy_toggle:
-                        self.reset_checkboxes(ticked = Toggle.LightVelocity)
-                        self.relative_particle_speed = 1.0
-                    else:
-                        self.relative_particle_speed = 0.9
-
-                ### Filled in cylinder togglebox
-                clicked, self.filled = imgui.checkbox("Fill in Cylinder", self.filled)
-
-                ### MUON VELOCITY TOGGLEBOX
-                
-                clicked, self.muon_velocity_toggle = imgui.checkbox("Muon Velocity", self.muon_velocity_toggle)
-
-                if clicked:
-                    if self.muon_velocity_toggle:
-                        self.reset_checkboxes(ticked = Toggle.MuonVelocity)
-                        self.relative_particle_speed = 0.9999999
-                    else:
-                        self.relative_particle_speed = 0.9
-                        
-
-                
-                imgui.next_column()
-
-                ### TAU VELOCITY TOGGLEBOX
-                
-                clicked, self.tau_velocity_toggle = imgui.checkbox("Tau Velocity", self.tau_velocity_toggle)
-                
-                if clicked:
-                    if self.tau_velocity_toggle:
-                        self.reset_checkboxes(ticked = Toggle.TauVelocity)
-                        self.relative_particle_speed = 0.99999997
-                    else:
-                        self.relative_particle_speed = 0.9
-                        
-                
-                clicked, self.gamma_gluon_toggle = imgui.checkbox("Gamma-Gluon-Gluon Velocity", self.gamma_gluon_toggle)
-
-                if clicked:
-                    if self.gamma_gluon_toggle:
-                        self.reset_checkboxes(ticked = Toggle.GammaVelocity)
-                        self.relative_particle_speed = 0.999999997
-                    else:
-                        self.relative_particle_speed = 0.9
-                
-                clicked, self.quark_toggle = imgui.checkbox("Quark Velocity", self.quark_toggle)
-
-                if clicked:
-                    if self.quark_toggle:
-                        self.reset_checkboxes(ticked = Toggle.QuarkVelocity)
-                        self.relative_particle_speed = 0.9999999997
-                    else:
-                        self.relative_particle_speed = 0.9
-                
-                clicked, self.ZBoson_toggle = imgui.checkbox("Z-Boson Velocity", self.ZBoson_toggle)
-
-                if clicked:
-                    if self.ZBoson_toggle:
-                        self.reset_checkboxes(ticked = Toggle.ZBosonVelocity)
-                        self.relative_particle_speed = 0.99999999994
-                    else:
-                        self.relative_particle_speed = 0.9
-                
-                
-                clicked, self.higgs_toggle = imgui.checkbox("Higgs Boson Velocity", self.higgs_toggle)
-
-                if clicked:
-                    if self.higgs_toggle:
-                        self.reset_checkboxes(ticked = Toggle.HiggsBosonVelocity)
-                        self.relative_particle_speed = 0.99999999997
-                    else:
-                        self.relative_particle_speed = 0.9
-
-                clicked, self.WPlus_toggle = imgui.checkbox("WPlus Velocity", self.WPlus_toggle)
-                if clicked:
-                    if self.WPlus_toggle:
-                        self.reset_checkboxes(ticked = Toggle.WPlusVelocity)
-                        self.relative_particle_speed = 0.999999999992
-                    else:
-                        self.relative_particle_speed = 0.9
-                
-                imgui.columns(1)
-
-                
-                    
-                
-                
-
-                
-
-
-                if imgui.button("Start Simulation "):
-                    self.simulating = True
-
-                
-                
-
-
-                imgui.end()
                 if self.simulating:
-                    self.positron_pos = [0, 0, np.round((-cylinder_height / 2 + 1.5))]  # Adjust start position
-                    self.electron_pos = [0, 0, np.round(cylinder_height / 2 - 1.5)]
-                    particles_created = False
-                    particles = []
-                    collision_results_window = False
+                    #Essentially, if the state of simulating changes after validating keyboard inputs then we know that the simulation has been started
+                    positron, electron, particles, collision_results_window, particles_created = self.restart_simulation()
 
-                    
-                    self.collided = False
-                    positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
-                    electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
+
+                #Draw the stationary positrons and electrons, if you delete this section it just resets them.  
                 if not self.collided:
                     positron.draw()
                     electron.draw()
@@ -1106,9 +791,12 @@ class Simulation():
 
                 
                 
-            #If the experiment has begun
+            #If the experiment has begun 
             if self.simulating:
+
+                #Collided defines when the electron and the positron have collided .
                 if not self.collided:
+                    # This is to allow for timestops <- essentially just draw and don't update.
                     if not self.time_stop:
                         positron.update(self.positron_pos)
                         electron.update(self.electron_pos)
@@ -1117,23 +805,35 @@ class Simulation():
                         
                         if self.positron_pos[2]>self.electron_pos[2]:
                             self.collided = True
-
-                        
                     
                     positron.draw()
                     electron.draw()
                     
                 else: # If the positron and electron have not collided yetc
                     if not particles_created:
-                        positron = None
-                        electron = None
-                        particles = self.generate_particles()
+                        
+                        
+                        particles, result_text = self.particle_generator.generate_particles(self.mode, self.positron_pos, self.electron_pos,self.relative_particle_speed,self.flash_manager,self.time_speed)
 
                         if len(particles)>0 and isinstance(particles[0], Blackhole):
                             black_hole = True
 
-        
-                        particles_created = True
+
+                        particles_created= True
+                        #We define the collision results window
+                        if self.mode.value == Mode.Educational.value:
+                            _, total_energy_MeV, total_energy_GeV = self.utility.calculate_total_energy(self.relative_particle_speed)
+                            
+                            if total_energy_GeV < 1:
+                                energy_text = f"{total_energy_MeV:.2f} MeV"
+                            else:
+                                energy_text = f"{total_energy_GeV:.2f} GeV"
+                            
+                            collision_results = {
+                                "energy_text": energy_text,
+                                "result_text": result_text
+                            }
+                            collision_results_window = True
 
                     else:
                         
@@ -1141,27 +841,20 @@ class Simulation():
                             
                             if not self.time_stop:
                                 particle.update()
-                                
-                                
-
-                                
-                                #p.resetBasePositionAndOrientation(particle.particleID, particle.pos, [0, 0, 0, 1])
-                                #p.stepSimulation()
-
                                 particle_pos = particle.pos
 
                                 # Calculate the distance between the particle and the cylinder's center
                                 distance = np.sqrt(particle_pos[0]**2 + particle_pos[1]**2)
 
                                 # Check if the particle is outside the cylinder's radius and within the cylinder's height range
-                                if (distance > cylinder_radius and -cylinder_height/2 <= particle_pos[2] <= cylinder_height/2):
+                                if (distance > CYLINDER_RADIUS and -CYLINDER_HEIGHT/2 <= particle_pos[2] <= CYLINDER_HEIGHT/2):
                                     # Collision detected
                                     #p.removeBody(particle.particleID)
                                     particles.remove(particle)
                                     self.flash_manager.add_flash(position=particle.pos, size=0.3, brightness=1, duration=2)
                                 
-                                elif (particle_pos[2]>np.round(cylinder_height / 2 - 1.5) or particle_pos[2]<np.round(-cylinder_height / 2 + 1.5)):
-                                    #p.removeBody(particle.particleID)
+                                elif (particle_pos[2]>np.round(CYLINDER_HEIGHT / 2 - 1.5) or particle_pos[2]<np.round(-CYLINDER_HEIGHT / 2 + 1.5)):
+                                    
                                     particles.remove(particle)
                             particle.draw()
                             
@@ -1178,102 +871,28 @@ class Simulation():
 
                         
                         if len(particles) == 0 and self.collided: # Automatically reset the chamber
-                            if self.mode.value == Mode.Educational.value:
-                                total_energy_eV, total_energy_MeV, total_energy_GeV = self.__calculate_total_energy()
-                                
-                                if total_energy_GeV < 1:
-                                    energy_text = f"{total_energy_MeV:.2f} MeV"
-                                else:
-                                    energy_text = f"{total_energy_GeV:.2f} GeV"
-                                
-                                collision_results = {
-                                    "energy_text": energy_text,
-                                    "result_text": self.result_text
-                                }
-                                collision_results_window = True
+                            positron, electron, particles, collision_results_window, particles_created = self.restart_simulation()
                             self.simulating = False
-                            self.positron_pos = [0, 0, np.round((-cylinder_height / 2 + 1.5))]  # Adjust start position
-                            self.electron_pos = [0, 0, np.round(cylinder_height / 2 - 1.5)]
-                            particles_created = False
-                            particles = []
-                            particle_ids = []
-                            self.collided = False
-                            positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
-                            electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
+                            
+                            
                             
                        
                 self.handle_keyboard_input()
                 time.sleep(1./240.)
-            
+            time.sleep(1./240.)
             if collision_results_window:
+
+                collision_results_window = self.collision_results_window(collision_results)
+
                 
 
-                # Set the initial position and size of the collision results window
-                window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/4
-                window_x = (self.window_size[0] ) * 2.5  // 5
-                window_y = (glfw.get_window_size(self.window)[1] - window_height) // 4
-                imgui.set_next_window_position(window_x, window_y)
-                imgui.set_next_window_size(window_width, window_height)
-
-                imgui.begin("Collision Results", True, imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-
-                # Add padding and spacing for better visual layout
-                imgui.push_style_var(imgui.STYLE_FRAME_PADDING, (10, 10))
-                imgui.push_style_var(imgui.STYLE_ITEM_SPACING, (10, 10))
-
-                # Display the collision results in a structured format
-                imgui.text("Collision Results")
-                imgui.separator()
-
-                # Display the total kinetic energy with a colored background
-                imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.2, 0.2, 0.2, 1.0)  # Set background color to dark gray
-                energy_text_formatted = f"Total Kinetic Energy: {collision_results['energy_text']}"
-                imgui.text_colored(energy_text_formatted, 1.0, 1.0, 1.0 )  # Set text color to white
-                imgui.pop_style_color()
-
-                imgui.spacing()
-
-                # Display the resultant particles with a colored background
-                imgui.text("Resultant Particles:")
-                imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.3, 0.3, 0.3, 1.0)  # Set background color to a slightly lighter gray
-                imgui.text_colored(collision_results['result_text'], 1.0, 0.0, 1.0 )  # Set text color to yellow
-                imgui.pop_style_color()
-
-                imgui.spacing()
-
-                if imgui.button("Close"):
-                    collision_results_window = False
-
-                imgui.pop_style_var(2)  # Pop the style variables for padding and spacing
-
-                imgui.end()
+            
             imgui.render()
             impl.render(imgui.get_draw_data())
             glfw.swap_buffers(self.window)
             
 
         glfw.terminate()
-
-
-                
-
-        
-
-            
-
-
-                
-                    
-
-                
-
-                
-
-            
-            
-            
-            
-
         
 if __name__ == "__main__":
     sim = Simulation()

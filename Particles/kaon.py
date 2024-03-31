@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 
 
 class Kaon(Particle):

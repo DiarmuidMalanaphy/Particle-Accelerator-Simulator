@@ -5,7 +5,7 @@ from OpenGL.GLUT import *
 import numpy as np
 
 
-from particle import Particle
+from Particles.particle import Particle
 
 
 

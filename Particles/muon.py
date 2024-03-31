@@ -1,4 +1,4 @@
-from particle import Particle
+from Particles.particle import Particle
 
 #The muon, on the other hand, has a mass 208 times that of an electron so its mass is approximately 1/9 of the mass of a proto
 class Muon(Particle):
