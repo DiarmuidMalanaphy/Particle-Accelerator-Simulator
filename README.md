@@ -37,7 +37,7 @@ These can be installed by a requirements.txt provided within the document
 
 1. Clone the repository to your local machine using the command ```git clone https://github.com/DiarmuidMalanaphy/Particle-Accelerator-Simulator/```.
 2. Ensure you have Python installed.
-If on windows you can either run the run.bat by double clicking it or following the steps provided below for Linux or Mac.
+If on windows you can either run the simulation by double clicking run.bat (be aware that run.bat uses a virtual environment, so it will be slightly slower for different boot-ups) or following the steps provided below for Linux or Mac.
 
 If you're on Linux or Mac follow these steps.
 
