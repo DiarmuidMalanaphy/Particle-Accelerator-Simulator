@@ -69,6 +69,7 @@ class Simulation():
         self.F_key_pressed = False
         self.R_key_pressed = False
         self.E_key_pressed = False
+        self.H_key_pressed = False
         self.instructions_shown = True
         self.utility = UtilityFunctions()
         self.particle_generator = ParticleGenerator()
@@ -79,7 +80,7 @@ class Simulation():
         if not glfw.init():
             raise Exception("glfw can not be initialized!")
         
-        window = glfw.create_window(self.window_size[0], self.window_size[1], "Proton-Proton Collision Simulation", None, None)
+        window = glfw.create_window(self.window_size[0], self.window_size[1], "Electron-Postriton Collision Simulation", None, None)
 
         if not window:
             glfw.terminate()
@@ -194,7 +195,14 @@ class Simulation():
             self.E_key_pressed = False
 
 
+        
+        if glfw.get_key(self.window, glfw.KEY_H) == glfw.PRESS and not self.H_key_pressed:
+            self.cylinder_shown = not self.cylinder_shown
+            self.H_key_pressed = True
 
+        if glfw.get_key(self.window, glfw.KEY_H) == glfw.RELEASE:
+            self.H_key_pressed = False
+        
 
         #Unfills
         if glfw.get_key(self.window, glfw.KEY_F) == glfw.PRESS and not self.F_key_pressed:
@@ -513,7 +521,7 @@ class Simulation():
         if clicked:
             if self.WPlus_toggle:
                 self.reset_checkboxes(ticked = Toggle.WPlusVelocity)
-                self.relative_particle_speed = 0.999999999992
+                self.relative_particle_speed = 0.999999999982
             else:
                 self.relative_particle_speed = 0.9
         
@@ -647,6 +655,7 @@ class Simulation():
         
         
         self.collided = False
+        self.time_stop = False
         positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
         electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
         
@@ -725,6 +734,7 @@ class Simulation():
         self.time_stop = False
         self.enable_fun_mode = False
         self.filled = False
+        self.cylinder_shown = True
         self.reset_checkboxes()
         positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
         electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
@@ -761,7 +771,8 @@ class Simulation():
             #Draw the background
             self.draw_stars()
             
-            self.draw_cylinder(CYLINDER_RADIUS,CYLINDER_HEIGHT)
+            if self.cylinder_shown:
+                self.draw_cylinder(CYLINDER_RADIUS,CYLINDER_HEIGHT)
             
             
             
@@ -873,7 +884,8 @@ class Simulation():
                         if len(particles) == 0 and self.collided: # Automatically reset the chamber
                             positron, electron, particles, collision_results_window, particles_created = self.restart_simulation()
                             self.simulating = False
-                            
+                            if self.mode.value == Mode.Educational.value:
+                                collision_results_window = True
                             
                             
                        

@@ -338,14 +338,14 @@ class ParticleGenerator():
             flash_manager.add_flash(position=collision_pos, size=0.5, brightness=10*speed, duration=3)
 
         elif total_energy_GeV>=160 and total_energy_GeV< 200: #W+ Boson
-            directions = generate_directions(choice)
+            directions = generate_directions(2)
             #wmass = 1e-25
             #rest_energy_eV_w =  wmass * (Constants.c.value**2) / (1.602176634e-19)
-
-            kinetic_energy_per_muon = (total_energy_eV - 2 * rest_energy_eV_muon) / 2
+            rest_energy_eV_boson = 80e9
+            kinetic_energy_per_boson = (total_energy_eV - 2 * rest_energy_eV_boson) / 2
 
             
-            v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_muon / (rest_energy_eV_muon)) + 1))**2)
+            v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_boson / (rest_energy_eV_boson)) + 1))**2)
             speed = v/Constants.c.value
             flash_manager.add_flash(position = collision_pos, size=0.5, brightness=10*speed, duration=2)
             for direction in directions:
@@ -354,6 +354,8 @@ class ParticleGenerator():
                 particle_z = direction[2] * speed
                 particle = WBoson(particle_x,particle_y,particle_z,speed,time_speed = time_speed)
                 particles.append(particle)
+            result_text = "The rest and kinetic energy of the particles\ncolliding produced two W+ Bosons"
+            
             
 
         else:#Who knows
