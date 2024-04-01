@@ -11,9 +11,10 @@ This project is a 3D simulation of a particle accelerator that allows users to e
 
 ## Modes
 The project provides 3 separate stages for the user:
-1. **The control panel** that allows for modification of the parameters of the simulation. The project provides preset velocities to simulate LHC, the early Synchotron, and the velocities required to create the fundamental particles. <img src="images/control_panel.png" width="500" height="500">
-2.  **Educational** mode that describes the kinetic energy of the input particles and the resultant particles. This is designed to be useful in a setting where you're attempting to convey the exponential growth of kinetic energy of particles at close to relativistic speeds.<img src="images/Education_mode.png" width="450" height="500">
-3. The simulation also provides an **Experimental** mode that provides for visually appealing particle interactions and behaviors. This is more for casual use and lets the user explore moving around in a 3 dimensional environment in a fun way. <img src="images/fun_mode.png" width="500" height="500">
+1. **The control panel** that allows for modification of the parameters of the simulation. The project provides preset velocities to simulate LHC, the early Synchotron, and the velocities required to create the fundamental particles.![Control Panel](images/control_panel.png)
+   
+2.  **Educational** mode that describes the kinetic energy of the input particles and the resultant particles. This is designed to be useful in a setting where you're attempting to convey the exponential growth of kinetic energy of particles at close to relativistic speeds.![Control Panel](images/Education_mode.png)
+3. The simulation also provides an **Experimental** mode that provides for visually appealing particle interactions and behaviors. This is more for casual use and lets the user explore moving around in a 3 dimensional environment in a fun way. ![Control Panel](images/fun_mode.png)
 
 
 
