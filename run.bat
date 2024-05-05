@@ -21,11 +21,14 @@ call venv\Scripts\activate.bat
 
 REM Install dependencies
 echo Installing dependencies...
+pip install -r ./requirements.txt
 pip3 install -r ./requirements.txt
 
 REM Run the simulation
 echo Starting the simulation...
 python simulation.py
+python3 simulation.py
+
 
 REM Deactivate the virtual environment
 echo Deactivating the virtual environment...
