@@ -40,12 +40,11 @@ These can be installed by a requirements.txt provided within the document
     
 If on windows
 
-1. You can either run the simulation by double clicking run.bat (be aware that run.bat uses a virtual environment, so it will be slightly slower for different boot-ups) or following the steps provided below for Linux or Mac.
+1. You can either run the simulation by double clicking run.bat (be aware that run.bat uses a virtual environment, so it will be slightly slower for different boot-ups).
 
-If you're on Linux or Mac follow these steps.
+If on Linux or Mac
 
-1. Download the requirements by typing ```pip install -r requirements.txt``` or ```pip3 install -r requirements.txt``` into the terminal.
-2. Run the software by typing ```python simulation.py``` or ```python3 simulation.py``` or ``py simulation.py``` into the terminal.
+   Unfortunately due to a later discovered bug in Imgui, the application will not work on Linux or MacOs.
 
 ## Contributing
 
