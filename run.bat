@@ -1,5 +1,6 @@
 @echo off
 echo Running Particle Accelerator Simulation...
 
-venv/bin/python code/simulation.py
+call .\code\venv\Scripts\python code\simulation.py
+
 
