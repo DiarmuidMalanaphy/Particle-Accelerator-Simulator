@@ -25,12 +25,8 @@ The project provides 3 separate stages for the user:
 
 ## Practical requirements
 - Python 3.x
-- OpenGL
-- GLFW
-- NumPy
-- Dear ImGui
+- If you get issues running the run.bat you're going to install C++ tools for windows (Shouldn't be necessary).
   
-
 ## Installation and Setup
 
 1. Clone the repository to your local machine using the command ```git clone https://github.com/DiarmuidMalanaphy/Particle-Accelerator-Simulator/```.
