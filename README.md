@@ -30,8 +30,6 @@ The project provides 3 separate stages for the user:
 - NumPy
 - Dear ImGui
   
-These can be installed by a requirements.txt provided within the document
-
 
 ## Installation and Setup
 
@@ -40,7 +38,7 @@ These can be installed by a requirements.txt provided within the document
     
 If on windows
 
-1. You can either run the simulation by double clicking run.bat (be aware that run.bat uses a virtual environment, so it will be slightly slower for different boot-ups).
+1. Click the .bat file and it should automatically run.
 
 If on Linux or Mac
 
