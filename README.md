@@ -7,7 +7,7 @@ This project is a 3D simulation of a particle accelerator that allows users to e
 ## Key Features
 
 - **3D Simulation**: Utilizes PyOpenGL to efficiently render dynamic 3D objects within Python, creating visually appealing and interactive experiences.
-- **Scientific Accuracy**: Built on research into electron and positron collisions, ensuring that particle interactions and the resulting particles are modeled with a high degree of scientific precision.
+- **Scientific Accuracy**: The simulation is built upon research on electron and positron collisions, ensuring that the particle interactions and resulting particles are scientifically accurate.
 - **Real-World Accelerator Simulations**: Includes simulations of velocities achieved by renowned particle accelerators, such as the Large Hadron Collider (LHC) and the early CERN Synchrotron.
 
 ## Modes
