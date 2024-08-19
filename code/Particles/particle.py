@@ -17,7 +17,26 @@ class Particle:
 
         If you don't want a trail you can either set trail_length to be 0 or set istrail to be False - setting trail to false is more efficient.
 
-    """ 
+    """
+
+
+    @staticmethod
+    def get_np_type(trail_length: int):
+        np_type = np.dtype([
+            ('pos', float, 3),
+            ('speed', float),
+            ('colour', float, 3),
+            ('radius', float),  # Assuming radius is a single float
+            ('trail', float, (trail_length, 3)),  # trail is an array of shape (trail_length, 3)
+            ('trail_length', int),
+            ('isParticle', bool),
+            ('istrail', bool),
+            ('time_speed', float),
+            ('last_update_time', float),
+            ('particleID', int)
+        ])
+        return np_type
+
     def __init__(self,x,y,z,colour,radius,speed,weight = 1, trail_length = 100, istrail = True,isParticle = True,charge = 0,time_speed = 1):
         self.pos = np.array([x, y, z])
         self.speed = speed
@@ -33,7 +52,23 @@ class Particle:
 
         self.particleID = None
 
-    
+    @staticmethod
+    def update_particles(particles):
+        current_time = time.time()
+        delta_time = current_time - particles['last_update_time']
+        
+        particles['pos'] += particles['pos'] * 3 * particles['speed'] / particles['time_speed'][:, np.newaxis] * delta_time[:, np.newaxis]
+        
+        particles['last_update_time'] = current_time
+
+        mask = particles['istrail']
+
+        particles['trail_index'][mask] = (particles['trail_index'][mask] + 1) % particles['trail_length'][mask]
+
+        trail_indices = particles['trail_index'][mask]
+        particles['trail'][mask, trail_indices] = particles['pos'][mask]
+        
+        
 
     def update(self,new_pos = None):
         if new_pos is None:

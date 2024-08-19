@@ -7,6 +7,7 @@ import numpy as np
 from constants import Mode, Toggle
 
 from Particles.electron import Electron
+from Particles.particle import Particle
 
 from Particles.particlegenerator import ParticleGenerator
 from Particles.positron import Positron
@@ -847,11 +848,11 @@ class Simulation():
                             collision_results_window = True
 
                     else:
-                        
+                        Particle.update_particles(particles)
                         for particle in particles:
                             
                             if not self.time_stop:
-                                particle.update()
+                                #particle.update()
                                 particle_pos = particle.pos
 
                                 # Calculate the distance between the particle and the cylinder's center
