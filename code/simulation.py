@@ -851,27 +851,16 @@ class Simulation():
                         if not self.time_stop:
                             
                             Particle.update_particles(particles)
+                            exploded_on_edge, fell_out_of_end = Particle.is_removed(particles, CYLINDER_RADIUS= CYLINDER_RADIUS, CYLINDER_HEIGHT= CYLINDER_HEIGHT)
+                            if np.any(exploded_on_edge):
+                                exploded_particles = particles[exploded_on_edge]
+                                for particle in exploded_particles:
+                                    self.flash_manager.add_flash(position=particle['pos'], size=0.3, brightness=1, duration=2)
+                                particles = particles[~exploded_on_edge]
+                            if np.any(fell_out_of_end):
+                                particles = particles[~fell_out_of_end]
                             
-                        for particle in particles:
-                            
-                            if not self.time_stop:
-                                #particle.update()
-                                particle_pos = particle.pos
-
-                                # Calculate the distance between the particle and the cylinder's center
-                                distance = np.sqrt(particle_pos[0]**2 + particle_pos[1]**2)
-
-                                # Check if the particle is outside the cylinder's radius and within the cylinder's height range
-                                if (distance > CYLINDER_RADIUS and -CYLINDER_HEIGHT/2 <= particle_pos[2] <= CYLINDER_HEIGHT/2):
-                                    # Collision detected
-                                    #p.removeBody(particle.particleID)
-                                    particles.remove(particle)
-                                    self.flash_manager.add_flash(position=particle.pos, size=0.3, brightness=1, duration=2)
-                                
-                                elif (particle_pos[2]>np.round(CYLINDER_HEIGHT / 2 - 1.5) or particle_pos[2]<np.round(-CYLINDER_HEIGHT / 2 + 1.5)):
-                                    
-                                    particles.remove(particle)
-                            particle.draw()
+                        Particle.draw_particles(particles)
                             
                         self.flash_manager.update_and_draw()
 

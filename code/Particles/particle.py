@@ -70,7 +70,54 @@ class Particle:
 
         trail_indices = particles['trail_index'][mask]
         particles['trail'][mask, trail_indices] = particles['pos'][mask]
-       
+   
+    @staticmethod
+    def is_removed(particles, CYLINDER_RADIUS, CYLINDER_HEIGHT):
+        # Compute the distance of each particle from the z-axis (cylinder's central axis)
+        distances = np.sqrt(particles['pos'][:, 0]**2 + particles['pos'][:, 1]**2)
+        
+        # Check if particles are outside the cylinder's radius and within the cylinder's height range
+        outside_radius = distances > CYLINDER_RADIUS
+        within_height_range = (-CYLINDER_HEIGHT/2 <= particles['pos'][:, 2]) & (particles['pos'][:, 2] <= CYLINDER_HEIGHT/2)
+        
+        # Condition 1: Particles outside the cylinder's radius and within the height range
+        exploded_on_edge = outside_radius & within_height_range
+        
+        # Check if particles are near the top or bottom of the cylinder
+        near_top = particles['pos'][:, 2] > np.round(CYLINDER_HEIGHT / 2 - 1.5)
+        near_bottom = particles['pos'][:, 2] < np.round(-CYLINDER_HEIGHT / 2 + 1.5)
+        
+        fell_out_of_end = near_top | near_bottom
+        
+        
+        return (exploded_on_edge, fell_out_of_end)
+
+    @staticmethod
+    def draw_particles(particles):
+        for particle in particles:
+            # Draw the particle
+            glPushMatrix()
+            glColor3f(particle['colour'][0], particle['colour'][1], particle['colour'][2])
+            glTranslatef(particle['pos'][0], particle['pos'][1], particle['pos'][2])
+            glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, particle['colour'])
+            quadric = gluNewQuadric()
+            gluSphere(quadric, particle['radius'], 32, 32)
+            glPopMatrix()
+
+            # Draw the trail for the particle
+            if particle['istrail']:
+                Particle.draw_trail(particle)
+
+    @staticmethod
+    def draw_trail(particle):
+        glDisable(GL_LIGHTING)
+        glColor4f(0.0, 1.0, 0.0, 0.3)  # Translucent green color for trail
+        glBegin(GL_LINE_STRIP)
+        for pos in particle['trail']:
+            glVertex3f(pos[0], pos[1], pos[2])
+        glEnd()
+        glEnable(GL_LIGHTING)
+
     def to_np(self):
         # Create an empty NumPy structured array with the appropriate dtype
         particle_dtype = self.get_np_type(self.trail_length)
