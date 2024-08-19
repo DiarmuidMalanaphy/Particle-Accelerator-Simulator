@@ -26,12 +26,13 @@ class Particle:
         np_type = np.dtype([
             ('pos', float, (3, )),
             ('speed', float),
-            ('colour', float, (3, )),
+            ('colour', float, (4, )),
             ('radius', float),  # Assuming radius is a single float
             ('trail', float, (np_trail_length, 3)),  # trail is an array of shape (trail_length, 3)
             ('trail_length', int),
             ('isParticle', bool),
             ('istrail', bool),
+            ('trail_index', int),
             ('time_speed', float),
             ('last_update_time', float),
             ('particleID', int)
@@ -46,6 +47,7 @@ class Particle:
         self.radius = radius
         self.trail = []
         self.trail_length = trail_length * time_speed
+        self.trail_index = 0
         self.isParticle = isParticle
         self.istrail = istrail
         self.time_speed = time_speed
@@ -82,6 +84,7 @@ class Particle:
         particle_np['trail_length'][0] = int(self.trail_length)
         particle_np['isParticle'][0] = self.isParticle
         particle_np['istrail'][0] = self.istrail
+        particle_np['trail_index'][0] = self.trail_index
         particle_np['time_speed'][0] = self.time_speed
         particle_np['last_update_time'][0] = self.last_update_time
         particle_np['particleID'][0] = self.particleID if self.particleID is not None else -1  # Use -1 if particleID is not set

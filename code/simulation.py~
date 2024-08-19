@@ -848,10 +848,7 @@ class Simulation():
                             collision_results_window = True
 
                     else:
-                        if not self.time_stop:
-                            
-                            Particle.update_particles(particles)
-                            
+                        Particle.update_particles(particles)
                         for particle in particles:
                             
                             if not self.time_stop:

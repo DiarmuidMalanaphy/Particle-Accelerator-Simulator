@@ -150,7 +150,7 @@ class ParticleGenerator():
                 particle_x = direction[0] * particle_speed
                 particle_y = direction[1] * particle_speed
                 particle_z = direction[2] * particle_speed
-                particle = cls(particle_x, particle_y, particle_z, particle_speed, time_speed=time_speed)
+                particle = cls(particle_x, particle_y, particle_z, particle_speed, time_speed=time_speed).to_np()
                 particles[i] = particle
             return particles
        

@@ -138,7 +138,6 @@ class ParticleGenerator():
             return directions
 
         def build_particles_array(number_of_particles):
-            print(type(number_of_particles))
             np_number_of_particles = np.int64(number_of_particles)
 
             particles = np.empty(np_number_of_particles, dtype=particle_dtype)
