@@ -68,8 +68,31 @@ class Particle:
 
         trail_indices = particles['trail_index'][mask]
         particles['trail'][mask, trail_indices] = particles['pos'][mask]
-        
-        
+       
+    def to_np(self):
+        # Create an empty NumPy structured array with the appropriate dtype
+        particle_dtype = self.get_np_type(self.trail_length)
+        particle_np = np.zeros(1, dtype=particle_dtype)
+
+        # Populate the fields with the values from the Particle instance
+        particle_np['pos'][0] = self.pos
+        particle_np['speed'][0] = self.speed
+        particle_np['colour'][0] = self.colour
+        particle_np['radius'][0] = self.radius
+        particle_np['trail_length'][0] = int(self.trail_length)
+        particle_np['isParticle'][0] = self.isParticle
+        particle_np['istrail'][0] = self.istrail
+        particle_np['time_speed'][0] = self.time_speed
+        particle_np['last_update_time'][0] = self.last_update_time
+        particle_np['particleID'][0] = self.particleID if self.particleID is not None else -1  # Use -1 if particleID is not set
+
+        trail_array = np.zeros((int(self.trail_length), 3), dtype=float)
+        for i, trail_pos in enumerate(self.trail):
+            if i < len(trail_array):  # Ensure we don't exceed the trail length
+                trail_array[i] = trail_pos
+        particle_np['trail'][0] = trail_array
+
+        return particle_np 
 
     def update(self,new_pos = None):
         if new_pos is None:
