@@ -22,12 +22,13 @@ class Particle:
 
     @staticmethod
     def get_np_type(trail_length: int):
+        np_trail_length = np.int64(int(trail_length))
         np_type = np.dtype([
-            ('pos', float, 3),
+            ('pos', float, (3, )),
             ('speed', float),
-            ('colour', float, 3),
+            ('colour', float, (3, )),
             ('radius', float),  # Assuming radius is a single float
-            ('trail', float, (trail_length, 3)),  # trail is an array of shape (trail_length, 3)
+            ('trail', float, (np_trail_length, 3)),  # trail is an array of shape (trail_length, 3)
             ('trail_length', int),
             ('isParticle', bool),
             ('istrail', bool),

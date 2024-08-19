@@ -38,7 +38,7 @@ class ParticleGenerator():
 
     def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, n_particles =  1000):
         particle_dtype = Particle.get_np_type(100 * particle_speed)
-        particles = np.zeros(n_particles, dtype=particle_dtype)
+        particles = np.empty(n_particles, dtype=particle_dtype)
     
 
         if particle_speed == 1.0:
@@ -138,12 +138,14 @@ class ParticleGenerator():
             return directions
 
         def build_particles_array(number_of_particles):
-            particles = np.zeros(number_of_particles, dtype=particle_dtype)
+            np_number_of_particles = np.int64(number_of_particles)
+
+            particles = np.empty(np_number_of_particles, dtype=particle_dtype)
 
             return particles
 
         def get_particles_array_from_directions(directions, particle_speed, cls, time_speed):
-            particles = build_particles_array(directions)
+            particles = build_particles_array(len(directions))
             for i, direction in enumerate(directions):
                 particle_x = direction[0] * particle_speed
                 particle_y = direction[1] * particle_speed
