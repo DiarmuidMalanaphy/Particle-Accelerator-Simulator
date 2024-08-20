@@ -43,68 +43,62 @@ class ParticleGenerator():
 
         if particle_speed == 1.0:
             # Create a black hole instead of particles
-            
             black_hole = Blackhole(collision_pos[0],collision_pos[1],collision_pos[2] ,1, time_speed = time_speed)
             return [black_hole]
-         
-        
-        for i in range(0,   max_particles):
-            if np.random.rand() < 0.7:
-                particle_type = np.random.choice(["Photon","Pion", "Muon", "Squi"])
-            else:
-                particle_type = np.random.choice(["Tau", "Gluon", "Quark", "HiggsBoson", "WBoson"], p=[0.3, 0.3, 0.3, 0.05, 0.05])
-
-            angle_xy = np.random.uniform(0, 2 * np.pi)
-            angle_z = np.random.uniform(0, np.pi)
-            speed = np.random.uniform(0.2, 1)
-
-            particle_x = np.cos(angle_xy) * np.sin(angle_z) * speed
-            particle_y = np.sin(angle_xy) * np.sin(angle_z) * speed
-            particle_z = np.cos(angle_z) * speed
 
 
-            match particle_type:
+        angle_xy = np.random.uniform(0, 2 * np.pi, max_particles)
+        angle_z = np.random.uniform(0, np.pi, max_particles)
+        speed = np.random.uniform(0.2, 1, max_particles)
+
+        particle_x = np.cos(angle_xy) * np.sin(angle_z) * speed
+        particle_y = np.sin(angle_xy) * np.sin(angle_z) * speed
+        particle_z = np.cos(angle_z) * speed
+
+        rand_vals = np.random.rand(max_particles)
+        common_particles_mask = rand_vals < 0.7
+        rare_particles_mask = ~common_particles_mask
+
+        common_particle_types = np.random.choice(["Photon", "Pion", "Muon", "Squi"], size=common_particles_mask.sum())
+        rare_particle_types = np.random.choice(
+            ["Tau", "Gluon", "Quark", "HiggsBoson", "WBoson"],
+            size=rare_particles_mask.sum(),
+            p=[0.3, 0.3, 0.3, 0.05, 0.05]
+        )
+
+        particle_types = np.empty(max_particles, dtype='<U10')
+        particle_types[common_particles_mask] = common_particle_types
+        particle_types[rare_particles_mask] = rare_particle_types
+            
+
+        for i in range(max_particles):
+            match particle_types[i]:
                 case "Photon":
-                    particle = Photon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particles[i] = Photon(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
                 case "Muon":
-                    particle = Muon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particles[i] = Muon(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
                 case "Tau":
-                    particle = Tau(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particles[i] = Tau(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
                 case "Gluon":
-                    particle = Gluon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
-                case "Pion": 
-                    particle = Pion(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
-                case "Squi":            
-                    particle = Squi(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                    particles[i] = Gluon(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
+                case "Pion":
+                    particles[i] = Pion(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
+                case "Squi":
+                    particles[i] = Squi(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
                 case "HiggsBoson":
-                    particle = HiggsBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                    particles[i] = HiggsBoson(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
                 case "WBoson":
-                    particle = WBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
-
-                case _: 
-                    quark_masses = {
-                    'D': 4.9e6,  # Down quark mass in eV/c^2 (using the average of the range)
-                    'C': 1.270e9,  # Charm quark mass in eV/c^2
-                    'S': 1.01e8,  # Strange quark mass in eV/c^2
-                    }
-
+                    particles[i] = WBoson(particle_x[i], particle_y[i], particle_z[i], speed[i], time_speed=time_speed).to_np()
+                case _:
+                    quark_masses = {'D': 4.9e6, 'C': 1.270e9, 'S': 1.01e8}
                     quark_types = ['D', 'C', 'S']
                     quark_weights = [quark_masses[q] for q in quark_types]
                     total_weight = sum(quark_weights)
                     quark_probs = [w / total_weight for w in quark_weights]
-
                     quark_type = np.random.choice(quark_types, p=quark_probs)
-                    particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=time_speed)
-                
-            particles[i] = particle.to_np()
-                
+                    particles[i] = Quark(particle_x[i], particle_y[i], particle_z[i], speed[i], quark_type=quark_type, time_speed=time_speed).to_np()
 
-        flash_manager.add_flash(
-            position= collision_pos,
-            size=2,
-            brightness=10,
-            duration=3
-        )
+            flash_manager.add_flash(position=collision_pos, size=2, brightness=10, duration=3)
 
         return particles
         
