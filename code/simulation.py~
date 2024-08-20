@@ -7,7 +7,6 @@ import numpy as np
 from constants import Mode, Toggle
 
 from Particles.electron import Electron
-from Particles.particle import Particle
 
 from Particles.particlegenerator import ParticleGenerator
 from Particles.positron import Positron
@@ -830,6 +829,7 @@ class Simulation():
                         if len(particles)>0 and isinstance(particles[0], Blackhole):
                             black_hole = True
 
+
                         particles_created= True
                         #We define the collision results window
                         if self.mode.value == Mode.Educational.value:
@@ -847,20 +847,9 @@ class Simulation():
                             collision_results_window = True
 
                     else:
-                        if not self.time_stop:
+                        
+                        for particle in particles:
                             
-<<<<<<< HEAD
-                            Particle.update_particles(particles)
-                            exploded_on_edge, fell_out_of_end = Particle.is_removed(particles, CYLINDER_RADIUS= CYLINDER_RADIUS, CYLINDER_HEIGHT= CYLINDER_HEIGHT)
-                            if np.any(exploded_on_edge):
-                                exploded_particles = particles[exploded_on_edge]
-                                for particle in exploded_particles:
-                                    self.flash_manager.add_flash(position=particle['pos'], size=0.3, brightness=1, duration=2)
-                            combined_mask = exploded_on_edge | fell_out_of_end
-                            particles = particles[~combined_mask]
-                            
-                        #Particle.draw_particles(particles)
-=======
                             if not self.time_stop:
                                 particle.update()
                                 particle_pos = particle.pos
@@ -873,16 +862,14 @@ class Simulation():
                                     # Collision detected
                                     #p.removeBody(particle.particleID)
                                     particles.remove(particle)
-                                    #self.flash_manager.add_flash(position=particle.pos, size=0.3, brightness=1, duration=2)
+                                    self.flash_manager.add_flash(position=particle.pos, size=0.3, brightness=1, duration=2)
                                 
                                 elif (particle_pos[2]>np.round(CYLINDER_HEIGHT / 2 - 1.5) or particle_pos[2]<np.round(-CYLINDER_HEIGHT / 2 + 1.5)):
                                     
                                     particles.remove(particle)
+                            particle.draw()
                             
-                            #particle.draw()
->>>>>>> 2c5e5e29c3f2b34a857929bb9239dcccb87234d0
-                            
-                        #self.flash_manager.update_and_draw()
+                        self.flash_manager.update_and_draw()
 
 
 

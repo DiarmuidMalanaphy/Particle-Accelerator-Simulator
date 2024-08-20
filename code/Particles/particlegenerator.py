@@ -36,20 +36,40 @@ class ParticleGenerator():
             particles = self.generate_fun_particles(total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager)
             return particles, ""
 
+<<<<<<< HEAD
     def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles =  1000000):
         particle_dtype = Particle.get_np_type(100 * particle_speed)
         particles = np.empty(max_particles, dtype=particle_dtype)
     
+=======
+    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles = 1000000):
+        particles = []
+        remaining_energy_eV = total_energy_eV
+        energy_factor = (1-particle_speed)*12800
+        
+>>>>>>> 2c5e5e29c3f2b34a857929bb9239dcccb87234d0
 
         if particle_speed == 1.0:
             # Create a black hole instead of particles
             black_hole = Blackhole(collision_pos[0],collision_pos[1],collision_pos[2] ,1, time_speed = time_speed)
             return [black_hole]
 
+<<<<<<< HEAD
 
         angle_xy = np.random.uniform(0, 2 * np.pi, max_particles)
         angle_z = np.random.uniform(0, np.pi, max_particles)
         speed = np.random.uniform(0.2, 1, max_particles)
+=======
+        while len(particles) < max_particles:
+            if np.random.rand() < 0.7:
+                particle_type = np.random.choice(["Photon","Pion", "Muon", "Squi"])
+            else:
+                particle_type = np.random.choice(["Tau", "Gluon", "Quark", "HiggsBoson", "WBoson"], p=[0.3, 0.3, 0.3, 0.05, 0.05])
+            particle_maker_ratio = 0.01
+            angle_xy = np.random.uniform(0, 2 * np.pi)
+            angle_z = np.random.uniform(0, np.pi)
+            speed = np.random.uniform(0.2, 1)
+>>>>>>> 2c5e5e29c3f2b34a857929bb9239dcccb87234d0
 
         particle_x = np.cos(angle_xy) * np.sin(angle_z) * speed
         particle_y = np.sin(angle_xy) * np.sin(angle_z) * speed
@@ -59,11 +79,71 @@ class ParticleGenerator():
         common_particles_mask = rand_vals < 0.7
         rare_particles_mask = ~common_particles_mask
 
+<<<<<<< HEAD
         common_particle_types = np.random.choice(["Photon", "Pion", "Muon", "Squi"], size=common_particles_mask.sum())
         rare_particle_types = np.random.choice(
             ["Tau", "Gluon", "Quark", "HiggsBoson", "WBoson"],
             size=rare_particles_mask.sum(),
             p=[0.3, 0.3, 0.3, 0.05, 0.05]
+=======
+            if particle_type == "Photon":
+                particle = Photon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                
+                particle_energy = 1 * particle_maker_ratio *total_energy_eV * energy_factor
+            
+            elif particle_type == "Muon":
+                particle = Muon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                
+                particle_energy = 4  * particle_maker_ratio * total_energy_eV * energy_factor
+            elif particle_type == "Tau":
+                particle = Tau(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                
+                particle_energy = 5  * particle_maker_ratio * total_energy_eV * energy_factor
+            elif particle_type == "Gluon":
+                particle = Gluon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                
+                particle_energy = 6  * particle_maker_ratio * total_energy_eV * energy_factor
+            
+            elif particle_type == "Pion":
+                particle = Pion(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                particle_energy = 3  * particle_maker_ratio * total_energy_eV * energy_factor
+            
+            elif particle_type == "Squi":  # Create Squi particle
+                particle = Squi(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                particle_energy = 2  * particle_maker_ratio * total_energy_eV * energy_factor
+            elif particle_type == "HiggsBoson":
+                particle = HiggsBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                particle_energy = 1 * particle_maker_ratio * total_energy_eV * energy_factor
+            elif particle_type == "WBoson":
+                particle = WBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                particle_energy = 8  * particle_maker_ratio * total_energy_eV * energy_factor
+
+            else:  # Quark
+
+                quark_masses = {
+                'D': 4.9e6,  # Down quark mass in eV/c^2 (using the average of the range)
+                'C': 1.270e9,  # Charm quark mass in eV/c^2
+                'S': 1.01e8,  # Strange quark mass in eV/c^2
+                }
+
+                quark_types = ['D', 'C', 'S']
+                quark_weights = [quark_masses[q] for q in quark_types]
+                total_weight = sum(quark_weights)
+                quark_probs = [w / total_weight for w in quark_weights]
+
+                quark_type = np.random.choice(quark_types, p=quark_probs)
+                particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=time_speed)
+                particle_energy = 7  * particle_maker_ratio * total_energy_eV * energy_factor
+            remaining_energy_eV -= particle_energy
+            
+            particles.append(particle)
+
+        flash_manager.add_flash(
+            position= collision_pos,
+            size=2,
+            brightness=10,
+            duration=3
+>>>>>>> 2c5e5e29c3f2b34a857929bb9239dcccb87234d0
         )
 
         particle_types = np.empty(max_particles, dtype='<U10')
