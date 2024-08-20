@@ -856,13 +856,12 @@ class Simulation():
                                 exploded_particles = particles[exploded_on_edge]
                                 for particle in exploded_particles:
                                     self.flash_manager.add_flash(position=particle['pos'], size=0.3, brightness=1, duration=2)
-                                particles = particles[~exploded_on_edge]
-                            if np.any(fell_out_of_end):
-                                particles = particles[~fell_out_of_end]
+                            combined_mask = exploded_on_edge | fell_out_of_end
+                            particles = particles[~combined_mask]
                             
-                        Particle.draw_particles(particles)
+                        #Particle.draw_particles(particles)
                             
-                        self.flash_manager.update_and_draw()
+                        #self.flash_manager.update_and_draw()
 
 
 

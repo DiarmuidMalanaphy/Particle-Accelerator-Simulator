@@ -22,10 +22,11 @@ class Particle:
 
     @staticmethod
     def get_np_type(trail_length: int):
-        np_trail_length = np.int64(int(trail_length))
+        np_trail_length = np.int64(int(trail_length + 1))
         np_type = np.dtype([
+
             ('pos', float, (3, )),
-            ('speed', float),
+            ('speed', float, (3, )),
             ('colour', float, (4, )),
             ('radius', float),  # Assuming radius is a single float
             ('trail', float, (np_trail_length, 3)),  # trail is an array of shape (trail_length, 3)
@@ -38,6 +39,7 @@ class Particle:
             ('particleID', int)
         ])
         return np_type
+
 
     def __init__(self,x,y,z,colour,radius,speed,weight = 1, trail_length = 100, istrail = True,isParticle = True,charge = 0,time_speed = 1):
         self.pos = np.array([x, y, z])
@@ -66,7 +68,7 @@ class Particle:
 
         mask = particles['istrail']
 
-        particles['trail_index'][mask] = (particles['trail_index'][mask] + 1) % particles['trail_length'][mask]
+        particles['trail_index'][mask] = (particles['trail_index'][mask]) % particles['trail_length'][mask]
 
         trail_indices = particles['trail_index'][mask]
         particles['trail'][mask, trail_indices] = particles['pos'][mask]
@@ -106,10 +108,11 @@ class Particle:
 
             # Draw the trail for the particle
             if particle['istrail']:
-                Particle.draw_trail(particle)
+                Particle.np_draw_trail(particle)
 
     @staticmethod
-    def draw_trail(particle):
+    def np_draw_trail(particle):
+        
         glDisable(GL_LIGHTING)
         glColor4f(0.0, 1.0, 0.0, 0.3)  # Translucent green color for trail
         glBegin(GL_LINE_STRIP)
@@ -125,7 +128,7 @@ class Particle:
 
         # Populate the fields with the values from the Particle instance
         particle_np['pos'][0] = self.pos
-        particle_np['speed'][0] = self.speed
+        particle_np['speed'][0] = np.full((3,), self.speed)
         particle_np['colour'][0] = self.colour
         particle_np['radius'][0] = self.radius
         particle_np['trail_length'][0] = int(self.trail_length)
@@ -136,7 +139,7 @@ class Particle:
         particle_np['last_update_time'][0] = self.last_update_time
         particle_np['particleID'][0] = self.particleID if self.particleID is not None else -1  # Use -1 if particleID is not set
 
-        trail_array = np.zeros((int(self.trail_length), 3), dtype=float)
+        trail_array = np.zeros((int(self.trail_length + 1), 3), dtype=float)
         for i, trail_pos in enumerate(self.trail):
             if i < len(trail_array):  # Ensure we don't exceed the trail length
                 trail_array[i] = trail_pos

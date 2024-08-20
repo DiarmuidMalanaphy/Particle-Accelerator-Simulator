@@ -36,9 +36,9 @@ class ParticleGenerator():
             particles = self.generate_fun_particles(total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager)
             return particles, ""
 
-    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, n_particles =  1000):
+    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles =  100000):
         particle_dtype = Particle.get_np_type(100 * particle_speed)
-        particles = np.empty(n_particles, dtype=particle_dtype)
+        particles = np.empty(max_particles, dtype=particle_dtype)
     
 
         if particle_speed == 1.0:
@@ -48,7 +48,7 @@ class ParticleGenerator():
             return [black_hole]
          
         
-        for i in range(0,   n_particles):
+        for i in range(0,   max_particles):
             if np.random.rand() < 0.7:
                 particle_type = np.random.choice(["Photon","Pion", "Muon", "Squi"])
             else:
@@ -96,7 +96,7 @@ class ParticleGenerator():
                     quark_type = np.random.choice(quark_types, p=quark_probs)
                     particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=time_speed)
                 
-            particles[i] = particle
+            particles[i] = particle.to_np()
                 
 
         flash_manager.add_flash(
