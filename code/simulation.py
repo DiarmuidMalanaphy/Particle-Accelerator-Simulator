@@ -829,7 +829,6 @@ class Simulation():
                         if len(particles)>0 and isinstance(particles[0], Blackhole):
                             black_hole = True
 
-
                         particles_created= True
                         #We define the collision results window
                         if self.mode.value == Mode.Educational.value:
@@ -862,14 +861,15 @@ class Simulation():
                                     # Collision detected
                                     #p.removeBody(particle.particleID)
                                     particles.remove(particle)
-                                    self.flash_manager.add_flash(position=particle.pos, size=0.3, brightness=1, duration=2)
+                                    #self.flash_manager.add_flash(position=particle.pos, size=0.3, brightness=1, duration=2)
                                 
                                 elif (particle_pos[2]>np.round(CYLINDER_HEIGHT / 2 - 1.5) or particle_pos[2]<np.round(-CYLINDER_HEIGHT / 2 + 1.5)):
                                     
                                     particles.remove(particle)
-                            particle.draw()
                             
-                        self.flash_manager.update_and_draw()
+                            #particle.draw()
+                            
+                        #self.flash_manager.update_and_draw()
 
 
 

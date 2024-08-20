@@ -33,10 +33,9 @@ class ParticleGenerator():
             particles = self.generate_fun_particles(total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager)
             return particles, ""
 
-    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager):
+    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles = 1000000):
         particles = []
         remaining_energy_eV = total_energy_eV
-        max_particles = 100
         energy_factor = (1-particle_speed)*12800
         
 
@@ -49,12 +48,12 @@ class ParticleGenerator():
          
         
 
-        while remaining_energy_eV > 0 and len(particles) < max_particles:
+        while len(particles) < max_particles:
             if np.random.rand() < 0.7:
                 particle_type = np.random.choice(["Photon","Pion", "Muon", "Squi"])
             else:
                 particle_type = np.random.choice(["Tau", "Gluon", "Quark", "HiggsBoson", "WBoson"], p=[0.3, 0.3, 0.3, 0.05, 0.05])
-
+            particle_maker_ratio = 0.01
             angle_xy = np.random.uniform(0, 2 * np.pi)
             angle_z = np.random.uniform(0, np.pi)
             speed = np.random.uniform(0.2, 1)
@@ -69,34 +68,34 @@ class ParticleGenerator():
             if particle_type == "Photon":
                 particle = Photon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
                 
-                particle_energy = 0.01 * total_energy_eV * energy_factor
+                particle_energy = 1 * particle_maker_ratio *total_energy_eV * energy_factor
             
             elif particle_type == "Muon":
                 particle = Muon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
                 
-                particle_energy = 0.04 * total_energy_eV * energy_factor
+                particle_energy = 4  * particle_maker_ratio * total_energy_eV * energy_factor
             elif particle_type == "Tau":
                 particle = Tau(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
                 
-                particle_energy = 0.05 * total_energy_eV * energy_factor
+                particle_energy = 5  * particle_maker_ratio * total_energy_eV * energy_factor
             elif particle_type == "Gluon":
                 particle = Gluon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
                 
-                particle_energy = 0.06 * total_energy_eV * energy_factor
+                particle_energy = 6  * particle_maker_ratio * total_energy_eV * energy_factor
             
             elif particle_type == "Pion":
                 particle = Pion(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
-                particle_energy = 0.03 * total_energy_eV * energy_factor
+                particle_energy = 3  * particle_maker_ratio * total_energy_eV * energy_factor
             
             elif particle_type == "Squi":  # Create Squi particle
                 particle = Squi(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
-                particle_energy = 0.02 * total_energy_eV * energy_factor
+                particle_energy = 2  * particle_maker_ratio * total_energy_eV * energy_factor
             elif particle_type == "HiggsBoson":
                 particle = HiggsBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
-                particle_energy = 0.1 * total_energy_eV * energy_factor
+                particle_energy = 1 * particle_maker_ratio * total_energy_eV * energy_factor
             elif particle_type == "WBoson":
                 particle = WBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
-                particle_energy = 0.08 * total_energy_eV * energy_factor
+                particle_energy = 8  * particle_maker_ratio * total_energy_eV * energy_factor
 
             else:  # Quark
 
@@ -113,11 +112,10 @@ class ParticleGenerator():
 
                 quark_type = np.random.choice(quark_types, p=quark_probs)
                 particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=time_speed)
-                particle_energy = 0.07 * total_energy_eV * energy_factor
+                particle_energy = 7  * particle_maker_ratio * total_energy_eV * energy_factor
             remaining_energy_eV -= particle_energy
             
             particles.append(particle)
-                
 
         flash_manager.add_flash(
             position= collision_pos,
