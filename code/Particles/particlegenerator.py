@@ -36,7 +36,7 @@ class ParticleGenerator():
             particles = self.generate_fun_particles(total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager)
             return particles, ""
 
-    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles =  100000):
+    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles =  1000000):
         particle_dtype = Particle.get_np_type(100 * particle_speed)
         particles = np.empty(max_particles, dtype=particle_dtype)
     
