@@ -1,14 +1,18 @@
 import time
+from collision_results_page import CollisionResultsPage
+from control_instructions import ControlInstructions
+import draw_tools
 import glfw
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
+from introduction_page import IntroductionPage
 import numpy as np
-from constants import Mode, Toggle
-
+from constants import Toggle
+import particle_control_panel
 from Particles.electron import Electron
 from Particles.particle import Particle
-
+from constants import Toggle, Mode
 from Particles.particlegenerator import ParticleGenerator
 from Particles.positron import Positron
 from flash import Flash
@@ -44,6 +48,9 @@ STARTING_UP_DIRECTION = (0.0, 1.0, 0.0)
 CYLINDER_RADIUS = 5
 CYLINDER_HEIGHT = 100
 
+POSITRON_STARTING_POSITION = [0, 0, np.round((-CYLINDER_HEIGHT / 2 + 1.5))]  # Adjust start position
+ELECTRON_STARTING_POSITION = [0, 0, np.round(CYLINDER_HEIGHT / 2 - 1.5)] 
+
 class Simulation():
 
     """
@@ -62,10 +69,17 @@ class Simulation():
     particle generator.     
     """
    
-    def __init__(self,mode = Mode.Educational):
+    def __init__(self):
         
-        self.mode = mode
+        
         self.window_size = (1080, 900)
+        self.window = self.initialize_glfw()
+        
+        ## Control panel variables.
+
+        self.control_panel = self.create_control_panel()
+        self.get_control_panel_info()
+       
         
         self.F_key_pressed = False
         self.R_key_pressed = False
@@ -92,37 +106,21 @@ class Simulation():
 
         return window
 
-    def logarithmic_slider(self,label, value, max_nines):
-        imgui.push_item_width(240)
-        #imgui.push_item_height(40)
-        # Directly map the value to a "number of nines" representation
-        if value >= 1.0:
-            slider_pos = max_nines
-        else:
-            slider_pos = max(0, min(max_nines, int(np.floor(-np.log10(1 - value)))))
+    def create_control_panel(self):
+        control_panel = particle_control_panel.ParticleControlPanel(self.window, self.window_size)
+        return control_panel
 
-        # Adjust the slider
-        if value == 1:
-            if self.mode.value == Mode.Educational:
-                value = 0.999999999999999
-                changed, new_slider_pos = imgui.slider_int(label, slider_pos, 0, max_nines, f"{value}c")
-                
-                
-            else:
-                changed, new_slider_pos = imgui.slider_int(label, slider_pos, 0, max_nines, f"c")
-        else:
-            changed, new_slider_pos = imgui.slider_int(label, slider_pos, 0, max_nines, f"{value}c")
-        
 
-        if changed:
-            # Convert back to the float value
-            if new_slider_pos == max_nines:
-                new_value = 1
-            else:
-                new_value = 1 - 10 ** (-new_slider_pos - 1)
-        imgui.pop_item_width()
-        return changed, new_value if changed else value
+    def reset_control_panel(self):
+        self.control_panel = particle_control_panel.ParticleControlPanel(self.window, self.window_size)
+        return  
 
+    def get_control_panel_info(self):
+        self.relative_particle_speed, self.filled, self.time_speed, self.mode, self.simulating = self.control_panel.get_information()
+        return 
+
+
+    
     def handle_keyboard_input(self):
         # Update camera position with arrow keys
         if glfw.get_key(self.window, glfw.KEY_UP) == glfw.PRESS:
@@ -212,436 +210,15 @@ class Simulation():
         if glfw.get_key(self.window, glfw.KEY_F) == glfw.RELEASE:
             self.F_key_pressed = False
 
-    def draw_cylinder(self,cylinder_radius,cylinder_height,segments = 128):
-        glColor3f(0.75, 0.75, 0.75)  # Set the color of the grid lines to grey
-        glLineWidth(0.5)  # Set the width of the grid lines
-        
-        if self.filled:
-            thickness = 0.1
-
-            # Draw the outer cylinder body
-            glBegin(GL_QUAD_STRIP)
-            for i in range(segments + 1):
-                angle = i * (2 * np.pi / segments)
-                x = cylinder_radius * np.cos(angle)
-                y = cylinder_radius * np.sin(angle)
-                glVertex3f(x, y, -cylinder_height / 2)
-                glVertex3f(x, y, cylinder_height / 2)
-            glEnd()
-
-            # Draw the inner cylinder body
-            for i in range(segments):
-                angle_start = i * (2 * np.pi / segments)
-                angle_end = (i + 1) * (2 * np.pi / segments)
-                
-                x_start_inner = (cylinder_radius - thickness) * np.cos(angle_start)
-                y_start_inner = (cylinder_radius - thickness) * np.sin(angle_start)
-                x_end_inner = (cylinder_radius - thickness) * np.cos(angle_end)
-                y_end_inner = (cylinder_radius - thickness) * np.sin(angle_end)
-                
-                glBegin(GL_TRIANGLE_STRIP)
-                glVertex3f(x_start_inner, y_start_inner, -cylinder_height / 2)
-                glVertex3f(x_start_inner, y_start_inner, cylinder_height / 2)
-                glVertex3f(x_end_inner, y_end_inner, -cylinder_height / 2)
-                glVertex3f(x_end_inner, y_end_inner, cylinder_height / 2)
-                glEnd()
-
-            
-
-        else:
-            glBegin(GL_LINES)
-            for i in range(segments):
-                angle = i * (2 * np.pi / segments)
-                x = cylinder_radius * np.cos(angle)
-                y = cylinder_radius * np.sin(angle)
-                glVertex3f(x, y, -cylinder_height / 2)  # Start from the negative end of the cylinder
-                glVertex3f(x, y, cylinder_height / 2)
-            glEnd()
-
-    def draw_control_instructions(self):
-        # imgui.new_frame()
-        # Define the control instructions
-        instructions = [
-            "Press SPACE to stop/start the simulation",
-            "Press T to stop/resume time",
-            "Press F to fill/unfill the cylinder",
-            "Use WASD to change your viewing angle",
-            "Use the arrow keys to modify your viewing position",
-            "Press R to return to your original position",
-            "Press E to hide/unhide control instructions"
-        ]
-
-        # Set the position and size of the overlay window
-        window_width = 300
-        window_height = 150
-        window_x = (self.window_size[0])   / 3
-        window_y = (glfw.get_window_size(self.window)[1]) // 12 * 10
-        # window_x = 10
-        # window_y = 10
-
-        #window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/3
-        #window_x = (self.window_size[0] )/2
-        #window_y = (glfw.get_window_size(self.window)[1]) // 12
-        imgui.set_next_window_position(window_x, window_y)
-        imgui.set_next_window_size(window_width, window_height)
-
-        # Begin an ImGui window for the overlay
-        imgui.set_next_window_position(window_x, window_y)
-        imgui.set_next_window_size(window_width, window_height)
-        imgui.begin("Control instructions", flags=imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-
-        # Render each line of the instructions
-        for line in instructions:
-            imgui.text(line)
-
-        imgui.end()
-
-        # End the ImGui window
-        # imgui.end()
-
     def rotate_vector(self, vector, angle, axis):
         cos_angle = np.cos(angle)
         sin_angle = np.sin(angle)
         return vector * cos_angle + np.cross(axis, vector) * sin_angle + axis * np.dot(axis, vector) * (1 - cos_angle)
 
-    def handle_intro_keys(self):
-        if glfw.get_key(self.window, glfw.KEY_SPACE) == glfw.PRESS:
-            self.intro_page = False
-            self.space_key_pressed = True
-
-    def reset_checkboxes(self,ticked = None):
-        
-        
-        
-        self.LHC_velocity_toggle, self.synchotron_velocity_toggle,self.infinite_energy_toggle, self.muon_velocity_toggle, self.muon_velocity_toggle, self.tau_velocity_toggle, self.gamma_gluon_toggle, self.quark_toggle, self.ZBoson_toggle, self.higgs_toggle, self.WPlus_toggle = False,False,False,False,False,False,False,False,False,False,False
-        
-        
-        if ticked is None:
-            return
-        if ticked.value == Toggle.LHCVelocity.value:
-            self.LHC_velocity_toggle = True
-
-        if ticked.value == Toggle.SynchotronVelocity.value:
-            self.synchotron_velocity_toggle = True
-        
-        if ticked.value == Toggle.MuonVelocity.value:
-            self.muon_velocity_toggle = True
-
-        if ticked.value == Toggle.TauVelocity.value:
-            self.tau_velocity_toggle = True
-        
-        if ticked.value == Toggle.GammaVelocity.value:
-            self.gamma_gluon_toggle = True
-        
-        if ticked.value == Toggle.QuarkVelocity.value:
-            self.quark_toggle = True
-
-        if ticked.value == Toggle.ZBosonVelocity.value:
-            self.ZBoson_toggle = True
-
-        if ticked.value == Toggle.HiggsBosonVelocity.value:
-            self.higgs_toggle = True
-
-        if ticked.value == Toggle.WPlusVelocity.value:
-            self.WPlus_toggle = True
-
-        if ticked.value == Toggle.LightVelocity.value:
-            self.infinite_energy_toggle = True
-
-    def draw_control_panel(self):
-        # imgui.new_frame()
-        def draw_checkbox_with_tooltip( label, variable, tooltip_text):
-            clicked, variable = imgui.checkbox(label, variable)
-            imgui.same_line()
-            imgui.text("(i)")
-            if imgui.is_item_hovered():
-                imgui.set_tooltip(tooltip_text)
-            return clicked, variable
-        window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/3
-                
-        window_x = (self.window_size[0]) * 0.3  // 5
-        window_y = (glfw.get_window_size(self.window)[1]) // 48
-        imgui.set_next_window_position(window_x, window_y)
-        imgui.set_next_window_size(window_width, window_height)
-
-        imgui.begin("Particle Accelerator Control", flags=imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-        
     
-        ##########SLIDERS###########
+    
 
-        ### DEFINING PARTICLE VELOCITY
-        changed, self.relative_particle_speed = self.logarithmic_slider(
-            "Particle Speed",
-            self.relative_particle_speed,
-            15  # Max number of nines
-        )
-        if changed:
-            self.reset_checkboxes()
-
-        ### DEFINING THE TIME SPEED (HOW SLOW/FAST THE SIMULATION GOES)
-        percentage = np.round(((self.time_speed/10)-0.6)*100)
-        if percentage>=0:
-
-            formatted_time_speed = f"Time Modifier +{percentage}%"
-        else:
-            formatted_time_speed = f"Time Modifier {percentage}%"
-        imgui.push_item_width(240)
-        changed, self.time_speed = imgui.slider_int(formatted_time_speed, self.time_speed, 1, 11)
-        imgui.pop_item_width()
-        
-        
-        
-        imgui.columns(2, 'checkboxes', False)
-
-
-        ##########TICKBOXES##################
-
-        clicked, self.LHC_velocity_toggle = draw_checkbox_with_tooltip("Velocity of LHC",self.LHC_velocity_toggle,"Velocity achieved by the Large Hadron Collider")
-       
-        if clicked:
-            if self.LHC_velocity_toggle:
-                self.reset_checkboxes(ticked = Toggle.LHCVelocity)
-                # https://public-archive.web.cern.ch/en/lhc/Facts-en.html
-                self.relative_particle_speed = 0.999999991
-            else:
-                self.relative_particle_speed = 0.9
-
-        
-        clicked, self.synchotron_velocity_toggle = draw_checkbox_with_tooltip("Velocity of Synchotron",self.synchotron_velocity_toggle,"Velocity achieved by the Synchotron, the earliest collider at CERN")
-       
-        if clicked:
-            if self.synchotron_velocity_toggle:
-                self.reset_checkboxes(ticked = Toggle.SynchotronVelocity)
-                #https://cds.cern.ch/record/1479637/files/1959_E_p29.pdf
-                
-                self.relative_particle_speed = 0.9993
-            else:
-                self.relative_particle_speed = 0.9
-
-        clicked, self.enable_fun_mode = draw_checkbox_with_tooltip("Experimental Mode",self.enable_fun_mode,"Makes the collisions more interesting and not true to life")
-       
-        
-        if clicked:
-            if self.enable_fun_mode:
-                self.mode = Mode.Fun
-            else:
-                self.mode = Mode.Educational
-                
-                
-
-        ###SPEED OF LIGHT TOGGLEBOX 
-        clicked, self.infinite_energy_toggle = draw_checkbox_with_tooltip("Speed of Light",self.infinite_energy_toggle,"Accelerates the particles to the speed of light")
-        
-        
-        if clicked:
-            if self.infinite_energy_toggle:
-                self.reset_checkboxes(ticked = Toggle.LightVelocity)
-                self.relative_particle_speed = 1.0
-            else:
-                self.relative_particle_speed = 0.9
-
-        ### Filled in cylinder togglebox
-        clicked, self.filled = draw_checkbox_with_tooltip("Fill in Cylinder",self.filled,"Fills in the gaps between the cylinder")
-       
-        ### MUON VELOCITY TOGGLEBOX
-        clicked, self.muon_velocity_toggle = draw_checkbox_with_tooltip("Muon Velocity",self.muon_velocity_toggle,"Accelerates the particles to a velocity to create Muons")
-        
-
-        if clicked:
-            if self.muon_velocity_toggle:
-                self.reset_checkboxes(ticked = Toggle.MuonVelocity)
-                self.relative_particle_speed = 0.9999999
-            else:
-                self.relative_particle_speed = 0.9
-                
-
-        
-        imgui.next_column()
-
-        ### TAU VELOCITY TOGGLEBOX
-        clicked, self.tau_velocity_toggle = draw_checkbox_with_tooltip("Tau Velocity",self.tau_velocity_toggle,"Accelerates the particles to a velocity to create Tau particles")
-       
-        
-        if clicked:
-            if self.tau_velocity_toggle:
-                self.reset_checkboxes(ticked = Toggle.TauVelocity)
-                self.relative_particle_speed = 0.99999997
-            else:
-                self.relative_particle_speed = 0.9
-                
-        ### Gamma gluon VELOCITY TOGGLEBOX
-        clicked, self.gamma_gluon_toggle = draw_checkbox_with_tooltip("Gamma-Gluon-Gluon Velocity",self.gamma_gluon_toggle,"Accelerates the particles to a velocity to create Gluons")
-       
-
-        if clicked:
-            if self.gamma_gluon_toggle:
-                self.reset_checkboxes(ticked = Toggle.GammaVelocity)
-                self.relative_particle_speed = 0.999999997
-            else:
-                self.relative_particle_speed = 0.9
-        
-        ### Quark VELOCITY TOGGLEBOX
-        clicked, self.quark_toggle = draw_checkbox_with_tooltip("Quark Velocity",self.quark_toggle,"Accelerates the particles to a velocity to create Quarks")
-        
-
-        if clicked:
-            if self.quark_toggle:
-                self.reset_checkboxes(ticked = Toggle.QuarkVelocity)
-                self.relative_particle_speed = 0.9999999997
-            else:
-                self.relative_particle_speed = 0.9
-
-        
-        
-        
-        
-        ### Z-Boson VELOCITY TOGGLEBOX
-        clicked, self.ZBoson_toggle = draw_checkbox_with_tooltip("ZBoson Velocity",self.ZBoson_toggle,"Accelerates the particles to a velocity to create ZBosons")
-
-        if clicked:
-            if self.ZBoson_toggle:
-                self.reset_checkboxes(ticked = Toggle.ZBosonVelocity)
-                self.relative_particle_speed = 0.99999999994
-            else:
-                self.relative_particle_speed = 0.9
-        
-        ### Higgs Boson VELOCITY TOGGLEBOX
-        clicked, self.higgs_toggle = draw_checkbox_with_tooltip("Higgs Boson Velocity",self.higgs_toggle,"Accelerates the particles to a velocity to produce the Higgs Boson")
-       
-
-        if clicked:
-            if self.higgs_toggle:
-                self.reset_checkboxes(ticked = Toggle.HiggsBosonVelocity)
-                self.relative_particle_speed = 0.99999999997
-            else:
-                self.relative_particle_speed = 0.9
-
-        ### WPlus VELOCITY TOGGLEBOX
-        clicked, self.WPlus_toggle = draw_checkbox_with_tooltip("WPlus Velocity",self.WPlus_toggle,"Accelerates the particles to a velocity to produce the WPlus Boson")
-        
-        if clicked:
-            if self.WPlus_toggle:
-                self.reset_checkboxes(ticked = Toggle.WPlusVelocity)
-                self.relative_particle_speed = 0.999999999982
-            else:
-                self.relative_particle_speed = 0.9
-        
-        
-
-        imgui.dummy(1, 20)  # Add some space before the button (vertical padding)
-        imgui.columns(3, "button_col", False)  # Create 3 columns; the button will be in the middle
-        imgui.set_column_width(0, 120)  # Adjust the width of the left column
-        imgui.next_column()  # Move to the middle column
-        imgui.set_column_width(1, 200)  # Adjust the middle column where the button will be
-
-        # Set the button size
-        if imgui.button("Start Simulation", width=200, height=40):  # Adjust width and height as needed
-            self.simulating = True
-
-        
-
-        
-        imgui.columns(1)
-        imgui.end()
-
-        # imgui.end()
-
-    def introduction_page(self, img_impl):
-        self.intro_page = True
-
-
-        while self.intro_page:
-            
-            glfw.poll_events()
-            img_impl.process_inputs()
-            imgui.new_frame()
-
-            # Set the next window's size and position before creating it
-            imgui.set_next_window_position(int(1080 / 2 - 250), int(900 / 2 - 150))
-            imgui.set_next_window_size(500, 300)
-
-            # Now when you begin the window, it will use the size and position set above
-            _, self.intro_page = imgui.begin("Particle Accelerator Simulation", self.intro_page, flags=imgui.WINDOW_NO_RESIZE | imgui.WINDOW_NO_MOVE)
-
-            
-            
-            imgui.spacing()
-            imgui.text("Welcome to the Particle Accelerator Simulation!")
-            imgui.spacing()
-            imgui.text("In this simulation, you can explore the collision of particles")
-            imgui.text("and observe the resulting particle interactions.")
-            imgui.spacing()
-
-            imgui.text("For simplicity we will be focusing on the interaction between ")
-            imgui.text("electrons and positrons at near light speed.")
-
-            imgui.spacing()
-            imgui.text("Press the 'Start Simulation' button or space to begin.")
-            imgui.spacing()
-
-            # Use dummy items and set_item_width to center the button
-            imgui.dummy(1, 20)  # Add some space before the button (vertical padding)
-            imgui.columns(3, "button_col", False)  # Create 3 columns; the button will be in the middle
-            imgui.set_column_width(0, 150)  # Adjust the width of the left column
-            imgui.next_column()  # Move to the middle column
-            imgui.set_column_width(1, 200)  # Adjust the middle column where the button will be
-
-            # Set the button size
-            imgui.push_button_repeat(True)
-            if imgui.button("Start Simulation", width=200, height=40):  # Adjust width and height as needed
-                self.intro_page = False
-            imgui.pop_button_repeat()
-
-            imgui.columns(1)  # Revert back to 1 column to normalize layout
-            imgui.end()
-
-            self.handle_intro_keys()
-            imgui.render()
-            img_impl.render(imgui.get_draw_data())
-            glfw.swap_buffers(self.window)
-
-    def collision_results_window(self, collision_results):
-        
-        # Set the initial position and size of the collision results window
-        window_width, window_height = self.window_size[0]/2.5, self.window_size[1]/3
-        window_x = (self.window_size[0] ) * 2.5  // 5
-        window_y = (glfw.get_window_size(self.window)[1]) // 48
-        imgui.set_next_window_position(window_x, window_y)
-        imgui.set_next_window_size(window_width, window_height)
-
-        imgui.begin("Collision Results", True, imgui.WINDOW_ALWAYS_AUTO_RESIZE)
-
-        # Add padding and spacing for better visual layout
-        imgui.push_style_var(imgui.STYLE_FRAME_PADDING, (10, 10))
-        imgui.push_style_var(imgui.STYLE_ITEM_SPACING, (10, 10))
-
-        
-        
-
-        # Display the total kinetic energy with a colored background
-        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.2, 0.2, 0.2, 1.0)  # Set background color to dark gray
-        energy_text_formatted = f"Total Kinetic Energy: {collision_results['energy_text']}"
-        imgui.text_colored(energy_text_formatted, 1.0, 1.0, 1.0 )  # Set text color to white
-        imgui.pop_style_color()
-
-        imgui.spacing()
-
-        # Display the resultant particles with a colored background
-        imgui.text("Resultant Particles:")
-        imgui.push_style_color(imgui.COLOR_FRAME_BACKGROUND, 0.3, 0.3, 0.3, 1.0)  # Set background color to a slightly lighter gray
-        imgui.text_colored(collision_results['result_text'], 1.0, 0.0, 1.0 )  # Set text color to yellow
-        imgui.pop_style_color()
-
-        imgui.spacing()
-        collision_results_window = True
-        if imgui.button("Close"):
-            collision_results_window = False
-
-        imgui.pop_style_var(2)  # Pop the style variables for padding and spacing
-        imgui.end()
-        # imgui.end()
-        return(collision_results_window)
-
+    
     def set_up_camera(self):
         self.camera_pos = np.array([self.eye_x, self.eye_y, self.eye_z], dtype=np.float32)
         self.camera_front = np.array([self.center_x - self.eye_x, self.center_y - self.eye_y, self.center_z - self.eye_z], dtype=np.float32)
@@ -651,49 +228,35 @@ class Simulation():
         self.camera_angle_speed = 1
         
     def restart_simulation(self):
-        self.positron_pos = [0, 0, np.round((-CYLINDER_HEIGHT / 2 + 1.5))]  # Adjust start position
-        self.electron_pos = [0, 0, np.round(CYLINDER_HEIGHT / 2 - 1.5)]
         
         
-        self.collided = False
-        self.time_stop = False
-        positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
-        electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
-        
+        collided = False
+        time_stop = False
+
+        starting_particles = ParticleGenerator.build_particles_array(0, particle_dtype = Particle.get_np_type(100 * self.time_speed))
+         
+        starting_particles[0] = Positron(POSITRON_STARTING_POSITION, 0.2).to_np() 
+
+        starting_particles[1] = Electron(ELECTRON_STARTING_POSITION, 0.2).to_np()
+
         collision_results_window = False
         particles_created = False
-        particles = []
+        
 
-        return(positron, electron, particles, collision_results_window, particles_created)
+        return starting_particles, collision_results_window, particles_created, collided, time_stop
 
-    def generate_stars(self, num_stars):
-        stars = []
-        for _ in range(num_stars):
-            x = np.random.uniform(-1.0, 1.0)
-            y = np.random.uniform(-1.0, 1.0)
-            z = np.random.uniform(-1.0, 1.0)
-            stars.append((x, y, z))
-        return stars
-
-    def draw_stars(self):
-        glPointSize(2.0)  # Set the size of the star points
-        glColor3f(1.0, 1.0, 1.0)  # Set the color of the stars to white
-        glBegin(GL_POINTS)
-        for star in self.stars:
-            glVertex3f(star[0]*100, star[1]*100, star[2] * 100)  # Scale down the z-coordinate
-        glEnd()
-   
+       
     def start_simulating(self):
 
         ###   THIS WHOLE SECTION IS JUST INITIALISING THE SIMULATION
-        self.window = self.initialize_glfw()
+        
         #self.black_hole_animation = BlackHoleAnimation("blackhole.glb")
         
         imgui.create_context()
         impl = GlfwRenderer(self.window)
 
-        self.introduction_page(impl)
-        
+        intro_page = IntroductionPage()
+        intro_page.display(impl, self.window) 
 
         glEnable(GL_DEPTH_TEST)  # Enable depth testing for 3D rendering
         glEnable(GL_BLEND)  # Enable blending for transparency
@@ -725,25 +288,30 @@ class Simulation():
 
 
         self.flash_manager = Flash()
-        self.positron_pos = [0, 0, np.round((-CYLINDER_HEIGHT / 2 + 1.5))]  # Adjust start position
-        self.electron_pos = [0, 0, np.round(CYLINDER_HEIGHT / 2 - 1.5)]  # Adjust start position
+        #reset_control_panel_stuff
         self.relative_particle_speed = 0.9
-        particles = []    
-        self.collided = False
-        particles_created = False
         self.simulating = False
-        self.time_stop = False
         self.enable_fun_mode = False
         self.filled = False
-        self.cylinder_shown = True
-        self.reset_checkboxes()
-        positron = Positron(self.positron_pos[0], self.positron_pos[1], self.positron_pos[2], 0.2)
-        electron = Electron(self.electron_pos[0], self.electron_pos[1], self.electron_pos[2], 0.2)
         self.time_speed = 6
+        self.get_control_panel_info()
+
+        #Defined During Simulation
+        particles, collision_results_window, particles_created, collided, time_stop = self.restart_simulation()
+        collision_results = None
+
+        particles_created = False
+        show_cylinder = True
+        
+        time_stop = False
+        self.control_panel.reset_checkboxes()
+
         black_hole = False
         collision_results_window = False
-        self.stars = self.generate_stars(1000)
+        
+        generated_stars = draw_tools.generate_stars(1000) 
 
+        
 
         ##### RUNNING THE SIMULATION
         
@@ -752,8 +320,8 @@ class Simulation():
             imgui.new_frame()
             glfw.poll_events()
             if self.instructions_shown:
-                self.draw_control_instructions()
-            
+                ControlInstructions.draw(self.window, self.window_size)
+             
 
             
              
@@ -770,67 +338,65 @@ class Simulation():
             
 
             #Draw the background
-            self.draw_stars()
+            draw_tools.draw_stars(generated_stars)
             
-            if self.cylinder_shown:
-                self.draw_cylinder(CYLINDER_RADIUS,CYLINDER_HEIGHT)
+            if show_cylinder:
+                draw_tools.draw_cylinder(CYLINDER_RADIUS, CYLINDER_HEIGHT, filled = self.filled)
             
             
             
 
-            
             
             
             if not self.simulating:
                 
                 self.handle_keyboard_input()
                 impl.process_inputs()
-                self.draw_control_panel()
+                self.control_panel.draw_control_panel()
+                self.get_control_panel_info()
                 
                 
                 if self.simulating:
                     #Essentially, if the state of simulating changes after validating keyboard inputs then we know that the simulation has been started
-                    positron, electron, particles, collision_results_window, particles_created = self.restart_simulation()
+                    particles, collision_results_window, particles_created, collided, time_stop = self.restart_simulation()
 
 
                 #Draw the stationary positrons and electrons, if you delete this section it just resets them.  
-                if not self.collided:
-                    positron.draw()
-                    electron.draw()
-                else:
-                    for particle in particles:
-                        particle.draw()
-
+                Particle.draw_particles(particles) 
                 
                 
             #If the experiment has begun 
             if self.simulating:
 
                 #Collided defines when the electron and the positron have collided .
-                if not self.collided:
+                if not collided:
+                    
                     # This is to allow for timestops <- essentially just draw and don't update.
-                    if not self.time_stop:
-                        positron.update(self.positron_pos)
-                        electron.update(self.electron_pos)
-                        self.positron_pos[2] += self.relative_particle_speed * 2/self.time_speed#relative_positron_speed  # Move proton1 along the positive z-axis (towards the center)
-                        self.electron_pos[2] -= self.relative_particle_speed * 2/self.time_speed#relative_electron_speed # Move proton2 along the negative z-axis
-                        
-                        if self.positron_pos[2]>self.electron_pos[2]:
-                            self.collided = True
+                    if not time_stop:
+                        Particle.update_particles(particles) ####################WORRY ZONE, i'm not sure if this will actually work because i've forgot how speed works
+                        ##We should likely redefine how speed works to make it how quick it moves in each plane ?
+                        #positron.update(self.positron_pos)
+                        #electron.update(self.electron_pos)
+                        ## Convert this logic to the np form.
+                        print(particles[0])
+                        #self.positron_pos[2] += self.relative_particle_speed * 2/self.time_speed#relative_positron_speed  # Move proton1 along the positive z-axis (towards the center)
+                        #self.electron_pos[2] -= self.relative_particle_speed * 2/self.time_speed#relative_electron_speed # Move proton2 along the negative z-axis
+                       
+                        #if self.p[2]>self.electron_pos[2]:
+                        #    self.collided = True
+                    Particle.draw_particles(particles) 
                     
-                    positron.draw()
-                    electron.draw()
-                    
-                else: # If the positron and electron have not collided yetc
+                else: # If the positron and electron have collided
                     if not particles_created:
                         
-                        
-                        particles, result_text = self.particle_generator.generate_particles(self.mode, self.positron_pos, self.electron_pos,self.relative_particle_speed,self.flash_manager,self.time_speed)
+                        positron_pos = particles[0]["pos"]
+                        positron_pos = particles[1]["pos"]
+                        particles, result_text = self.particle_generator.generate_particles(self.mode, positron_pos, electron_pos, self.relative_particle_speed,self.flash_manager,self.time_speed)
 
                         if len(particles)>0 and isinstance(particles[0], Blackhole):
                             black_hole = True
 
-                        particles_created= True
+                        particles_created = True
                         #We define the collision results window
                         if self.mode.value == Mode.Educational.value:
                             _, total_energy_MeV, total_energy_GeV = self.utility.calculate_total_energy(self.relative_particle_speed)
@@ -847,9 +413,8 @@ class Simulation():
                             collision_results_window = True
 
                     else:
-                        if not self.time_stop:
+                        if not time_stop:
                             
-<<<<<<< HEAD
                             Particle.update_particles(particles)
                             exploded_on_edge, fell_out_of_end = Particle.is_removed(particles, CYLINDER_RADIUS= CYLINDER_RADIUS, CYLINDER_HEIGHT= CYLINDER_HEIGHT)
                             if np.any(exploded_on_edge):
@@ -860,27 +425,6 @@ class Simulation():
                             particles = particles[~combined_mask]
                             
                         #Particle.draw_particles(particles)
-=======
-                            if not self.time_stop:
-                                particle.update()
-                                particle_pos = particle.pos
-
-                                # Calculate the distance between the particle and the cylinder's center
-                                distance = np.sqrt(particle_pos[0]**2 + particle_pos[1]**2)
-
-                                # Check if the particle is outside the cylinder's radius and within the cylinder's height range
-                                if (distance > CYLINDER_RADIUS and -CYLINDER_HEIGHT/2 <= particle_pos[2] <= CYLINDER_HEIGHT/2):
-                                    # Collision detected
-                                    #p.removeBody(particle.particleID)
-                                    particles.remove(particle)
-                                    #self.flash_manager.add_flash(position=particle.pos, size=0.3, brightness=1, duration=2)
-                                
-                                elif (particle_pos[2]>np.round(CYLINDER_HEIGHT / 2 - 1.5) or particle_pos[2]<np.round(-CYLINDER_HEIGHT / 2 + 1.5)):
-                                    
-                                    particles.remove(particle)
-                            
-                            #particle.draw()
->>>>>>> 2c5e5e29c3f2b34a857929bb9239dcccb87234d0
                             
                         #self.flash_manager.update_and_draw()
 
@@ -894,8 +438,8 @@ class Simulation():
 
 
                         
-                        if len(particles) == 0 and self.collided: # Automatically reset the chamber
-                            positron, electron, particles, collision_results_window, particles_created = self.restart_simulation()
+                        if len(particles) == 0 and collided: # Automatically reset the chamber
+                            particles, collision_results_window, particles_created, collided, time_stop = self.restart_simulation()
                             self.simulating = False
                             if self.mode.value == Mode.Educational.value:
                                 collision_results_window = True
@@ -905,9 +449,9 @@ class Simulation():
                 self.handle_keyboard_input()
                 time.sleep(1./240.)
             time.sleep(1./240.)
-            if collision_results_window:
+            if collision_results_window and collision_results is not None:
+                CollisionResultsPage.draw(collision_results, self.window, self.window_size)
 
-                collision_results_window = self.collision_results_window(collision_results)
 
                 
 

@@ -1,6 +1,7 @@
 import numpy as np
 from enum import Enum
 
+
 class Constants(Enum):
     c = 299792458
 

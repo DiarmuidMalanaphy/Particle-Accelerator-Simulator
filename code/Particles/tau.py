@@ -4,5 +4,5 @@ from Particles.particle import Particle
 
 #Gold: (1.0, 0.84, 0.0, 1.0)
 class Tau(Particle):
-    def __init__(self, x, y, z,speed,colour = (1.0, 0.84, 0.0, 1.0), size = 0.2, charge = 1/2,time_speed = 1):
-        super().__init__(x, y, z, colour,size,speed,time_speed = time_speed)
+    def __init__(self, coordinates, speed,colour = (1.0, 0.84, 0.0, 1.0), size = 0.2, charge = 1/2,time_speed = 1):
+        super().__init__(coordinates, colour,size,speed,time_speed = time_speed)

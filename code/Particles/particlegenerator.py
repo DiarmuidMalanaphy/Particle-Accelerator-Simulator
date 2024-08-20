@@ -44,10 +44,11 @@ class ParticleGenerator():
         if particle_speed == 1.0:
             # Create a black hole instead of particles
             
-            black_hole = Blackhole(collision_pos[0],collision_pos[1],collision_pos[2] ,1, time_speed = time_speed)
-            return [black_hole]
+            black_hole = Blackhole(collision_pos, 1, time_speed = time_speed)
+            particles = np.empty() 
+            return particles
+            #return [black_hole]
          
-        
         for i in range(0,   max_particles):
             if np.random.rand() < 0.7:
                 particle_type = np.random.choice(["Photon","Pion", "Muon", "Squi"])
@@ -56,30 +57,33 @@ class ParticleGenerator():
 
             angle_xy = np.random.uniform(0, 2 * np.pi)
             angle_z = np.random.uniform(0, np.pi)
-            speed = np.random.uniform(0.2, 1)
+            speed = np.random.uniform(low = 0.2, high = 1.5, size = 3) #Do this for 3d array and initialise all directions to be 0,0,0
 
-            particle_x = np.cos(angle_xy) * np.sin(angle_z) * speed
-            particle_y = np.sin(angle_xy) * np.sin(angle_z) * speed
-            particle_z = np.cos(angle_z) * speed
+            #Remove this
+
+            #particle_x = np.cos(angle_xy) * np.sin(angle_z) * speed
+            
+            #particle_y = np.sin(angle_xy) * np.sin(angle_z) * speed
+            #particle_z = np.cos(angle_z) * speed
 
 
             match particle_type:
                 case "Photon":
-                    particle = Photon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particle = Photon(collision_pos, speed,time_speed = time_speed)
                 case "Muon":
-                    particle = Muon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particle = Muon(collision_pos, speed,time_speed = time_speed)
                 case "Tau":
-                    particle = Tau(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particle = Tau(collision_pos, speed,time_speed = time_speed)
                 case "Gluon":
-                    particle = Gluon(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particle = Gluon(collision_pos, speed,time_speed = time_speed)
                 case "Pion": 
-                    particle = Pion(particle_x, particle_y, particle_z, speed,time_speed = time_speed)
+                    particle = Pion(collision_pos, speed,time_speed = time_speed)
                 case "Squi":            
-                    particle = Squi(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                    particle = Squi(collision_pos, speed, time_speed= time_speed)
                 case "HiggsBoson":
-                    particle = HiggsBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                    particle = HiggsBoson(collision_pos, speed, time_speed= time_speed)
                 case "WBoson":
-                    particle = WBoson(particle_x, particle_y, particle_z, speed, time_speed= time_speed)
+                    particle = WBoson(collision_pos, speed, time_speed= time_speed)
 
                 case _: 
                     quark_masses = {
@@ -94,7 +98,7 @@ class ParticleGenerator():
                     quark_probs = [w / total_weight for w in quark_weights]
 
                     quark_type = np.random.choice(quark_types, p=quark_probs)
-                    particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=time_speed)
+                    particle = Quark(collision_pos, speed, quark_type=quark_type, time_speed=time_speed)
                 
             particles[i] = particle.to_np()
                 
@@ -108,6 +112,15 @@ class ParticleGenerator():
 
         return particles
         
+    @staticmethod
+    def build_particles_array(number_of_particles, particle_dtype):
+            np_number_of_particles = np.int64(number_of_particles)
+
+            particles = np.empty(np_number_of_particles, dtype=particle_dtype)
+
+            return particles
+
+
 
     def generate_educational_particles(self,total_energy_eV, total_energy_MeV, total_energy_GeV,collision_pos, flash_manager, time_speed):
         particle_dtype = Particle.get_np_type(100 * time_speed) 
@@ -137,20 +150,11 @@ class ParticleGenerator():
 
             return directions
 
-        def build_particles_array(number_of_particles):
-            np_number_of_particles = np.int64(number_of_particles)
-
-            particles = np.empty(np_number_of_particles, dtype=particle_dtype)
-
-            return particles
-
-        def get_particles_array_from_directions(directions, particle_speed, cls, time_speed):
-            particles = build_particles_array(len(directions))
+        
+        def get_particles_array_from_directions(directions, cls, time_speed, collision_pos, speed):
+            particles = ParticleGenerator.build_particles_array(len(directions), particle_dtype)
             for i, direction in enumerate(directions):
-                particle_x = direction[0] * particle_speed
-                particle_y = direction[1] * particle_speed
-                particle_z = direction[2] * particle_speed
-                particle = cls(particle_x, particle_y, particle_z, particle_speed, time_speed=time_speed).to_np()
+                particle = cls(collision_pos, direction*speed, time_speed=time_speed).to_np()
                 particles[i] = particle
             return particles
        
@@ -167,7 +171,8 @@ class ParticleGenerator():
             directions = generate_directions(choice)
             
             particle_speed = 1
-            particles = get_particles_array_from_directions(directions, particle_speed, Photon, time_speed)
+            particles = get_particles_array_from_directions(directions, Photon, time_speed, collision_pos, particle_speed)
+
 
 
         elif total_energy_GeV<3.4 and total_energy_MeV>210:#Muons
@@ -184,7 +189,7 @@ class ParticleGenerator():
             particle_speed = v/Constants.c.value
             flash_manager.add_flash(position = collision_pos, size=0.5, brightness=10*particle_speed, duration=2)
 
-            particles = get_particles_array_from_directions(directions, particle_speed, Muon, time_speed)
+            particles = get_particles_array_from_directions(directions, Muon, time_speed, collision_pos, particle_speed)
             
 
 
@@ -202,7 +207,7 @@ class ParticleGenerator():
             particle_speed = v/Constants.c.value
             flash_manager.add_flash(position=collision_pos, size=0.5, brightness=10*particle_speed, duration=2)
 
-            particles = get_particles_array_from_directions(directions, particle_speed, Tau, time_speed) 
+            particles = get_particles_array_from_directions(directions, Tau, time_speed, collision_pos, particle_speed) 
 
 
         elif total_energy_GeV>=9.4 and total_energy_GeV<30: #gamma gluon gluon
@@ -211,17 +216,14 @@ class ParticleGenerator():
             particle_speed = 1.3 # C -> the gluons are incredibly high powered (I modified it to make it cooler and make it slightly more explosive and fast)
             flash_manager.add_flash(position=collision_pos, size=2, brightness=10*particle_speed, duration=3)
 
-            particles = get_particles_array_from_directions(directions, particle_speed, Gluon, time_speed)
+            particles = get_particles_array_from_directions(directions, particle_speed, Gluon, time_speed, particle_speed)
             
 
         elif total_energy_GeV >= 30 and total_energy_GeV < 80:  # quark quark gluon
-            particles = build_particles_array(3)
+            particles = ParticleGenerator.build_particles_array(3, particle_dtype)
 
             directions = generate_directions(3)
-            particle_x = directions[2][0] * 1
-            particle_y = directions[2][1] * 1
-            particle_z = directions[2][2] * 1
-            particle = Gluon(particle_x, particle_y, particle_z, 1, time_speed=time_speed)
+            particle = Gluon(collision_pos, directions[2], time_speed=time_speed)
             particles[0] = particle
 
             quark_masses = {
@@ -260,11 +262,8 @@ class ParticleGenerator():
                 v = Constants.c.value * np.sqrt(1 - (1 / ((kinetic_energy_per_quark / (rest_energy_eV_quark)) + 1))**2)
                 speed = v / Constants.c.value
 
-                particle_x = directions[i][0] * speed
-                particle_y = directions[i][1] * speed
-                particle_z = directions[i][2] * speed
 
-                particle = Quark(particle_x, particle_y, particle_z, speed, quark_type=quark_type, time_speed=time_speed)
+                particle = Quark(collision_pos, directions*speed, quark_type=quark_type, time_speed=time_speed)
                 particles[i+1] = particle # Forgive me, the quark case is cursed.
 
             flash_manager.add_flash(
@@ -290,7 +289,8 @@ class ParticleGenerator():
             flash_manager.add_flash(position=collision_pos, size=0.5, brightness=10*particle_speed, duration=2)
 
 
-            particles = get_particles_array_from_directions(directions, particle_speed, Muon, time_speed)
+            particles = get_particles_array_from_directions(directions, Muon, time_speed, collision_pos,particle_speed)
+
 
             
 
@@ -306,7 +306,7 @@ class ParticleGenerator():
 
             particle_speed = 1
             
-            particles = get_particles_array_from_directions(directions, particle_speed, Photon, time_speed)
+            particles = get_particles_array_from_directions(directions, Photon, time_speed, collision_pos, particle_speed)
 
             flash_manager.add_flash(position=collision_pos, size=0.5, brightness=10*particle_speed, duration=3)
 
@@ -322,7 +322,7 @@ class ParticleGenerator():
             particle_speed = v/Constants.c.value
             flash_manager.add_flash(position = collision_pos, size=0.5, brightness=10*particle_speed, duration=2)
 
-            particles = get_particles_array_from_directions(directions, particle_speed, WBoson, time_speed)
+            particles = get_particles_array_from_directions(directions, WBoson, time_speed, collision_pos, particle_speed)
 
             result_text = "The rest and kinetic energy of the particles\ncolliding produced two W+ Bosons"
             

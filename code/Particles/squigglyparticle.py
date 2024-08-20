@@ -14,7 +14,7 @@ class SquigglyParticle(Particle):
     def update(self, new_pos=None):
         super().update(new_pos)
         self.squiggle_phase += 0.1
-
+    
     def draw_particle(self):
         glPushMatrix()
         glColor3f(self.colour[0], self.colour[1], self.colour[2])

@@ -41,7 +41,8 @@ class Particle:
         return np_type
 
 
-    def __init__(self,x,y,z,colour,radius,speed,weight = 1, trail_length = 100, istrail = True,isParticle = True,charge = 0,time_speed = 1):
+    def __init__(self,coordinate,colour,radius,speed,weight = 1, trail_length = 100, istrail = True,isParticle = True,charge = 0,time_speed = 1):
+        x,y,z = coordinate
         self.pos = np.array([x, y, z])
         self.speed = speed
         
@@ -163,10 +164,6 @@ class Particle:
                 self.trail.pop(0)
 
         
-    def updateID(self,newID):
-        self.particleID = newID
-        
-
     def draw(self):
         self.last_update_time = time.time() 
         
