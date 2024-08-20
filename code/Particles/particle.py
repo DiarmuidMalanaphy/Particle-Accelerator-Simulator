@@ -63,7 +63,7 @@ class Particle:
         current_time = time.time()
         delta_time = current_time - particles['last_update_time']
         
-        particles['pos'] += particles['pos'] * 3 * particles['speed'] / particles['time_speed'][:, np.newaxis] * delta_time[:, np.newaxis]
+        particles['pos'] += particles['speed'] * 5 / particles['time_speed'][:, np.newaxis] * delta_time[:, np.newaxis]
         
         particles['last_update_time'] = current_time
 
@@ -128,6 +128,7 @@ class Particle:
         particle_np = np.zeros(1, dtype=particle_dtype)
 
         # Populate the fields with the values from the Particle instance
+        print(f"Speed, {self.speed}")
         particle_np['pos'][0] = self.pos
         particle_np['speed'][0] = np.full((3,), self.speed)
         particle_np['colour'][0] = self.colour

@@ -1,7 +1,7 @@
 import time
 from collision_results_page import CollisionResultsPage
 from control_instructions import ControlInstructions
-import draw_tools
+from draw_tools import DrawTools
 import glfw
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -80,7 +80,7 @@ class Simulation():
         self.control_panel = self.create_control_panel()
         self.get_control_panel_info()
        
-        
+        self.space_key_pressed = False
         self.F_key_pressed = False
         self.R_key_pressed = False
         self.E_key_pressed = False
@@ -117,6 +117,7 @@ class Simulation():
 
     def get_control_panel_info(self):
         self.relative_particle_speed, self.filled, self.time_speed, self.mode, self.simulating = self.control_panel.get_information()
+        print(self.relative_particle_speed)
         return 
 
 
@@ -165,6 +166,7 @@ class Simulation():
         #Starts the experiment
         if glfw.get_key(self.window, glfw.KEY_SPACE) == glfw.PRESS and not self.space_key_pressed:
             self.simulating = not self.simulating
+            print("Pi")
             self.space_key_pressed = True
         if glfw.get_key(self.window, glfw.KEY_SPACE) == glfw.RELEASE:
             self.space_key_pressed = False
@@ -233,11 +235,11 @@ class Simulation():
         collided = False
         time_stop = False
 
-        starting_particles = ParticleGenerator.build_particles_array(0, particle_dtype = Particle.get_np_type(100 * self.time_speed))
+        starting_particles = ParticleGenerator.build_particles_array(2, particle_dtype = Particle.get_np_type(100 * self.time_speed))
          
-        starting_particles[0] = Positron(POSITRON_STARTING_POSITION, 0.2).to_np() 
-
-        starting_particles[1] = Electron(ELECTRON_STARTING_POSITION, 0.2).to_np()
+         
+        starting_particles[0] = Positron(POSITRON_STARTING_POSITION, np.asarray([0, 0, 10])).to_np() 
+        starting_particles[1] = Electron(ELECTRON_STARTING_POSITION, np.asarray([0, 0, -10])).to_np()
 
         collision_results_window = False
         particles_created = False
@@ -309,9 +311,8 @@ class Simulation():
         black_hole = False
         collision_results_window = False
         
-        generated_stars = draw_tools.generate_stars(1000) 
+        generated_stars = DrawTools.generate_stars(1000) 
 
-        
 
         ##### RUNNING THE SIMULATION
         
@@ -338,23 +339,22 @@ class Simulation():
             
 
             #Draw the background
-            draw_tools.draw_stars(generated_stars)
+            DrawTools.draw_stars(generated_stars)
             
             if show_cylinder:
-                draw_tools.draw_cylinder(CYLINDER_RADIUS, CYLINDER_HEIGHT, filled = self.filled)
+                DrawTools.draw_cylinder(CYLINDER_RADIUS, CYLINDER_HEIGHT, filled = self.filled)
             
             
             
 
-            
-            
             if not self.simulating:
                 
-                self.handle_keyboard_input()
                 impl.process_inputs()
-                self.control_panel.draw_control_panel()
+               
+                self.control_panel.draw_control_panel() 
                 self.get_control_panel_info()
                 
+                self.handle_keyboard_input()
                 
                 if self.simulating:
                     #Essentially, if the state of simulating changes after validating keyboard inputs then we know that the simulation has been started
@@ -378,10 +378,11 @@ class Simulation():
                         #positron.update(self.positron_pos)
                         #electron.update(self.electron_pos)
                         ## Convert this logic to the np form.
-                        print(particles[0])
+                        #print(f"Positron Position {particles[0]['pos']}\n")
                         #self.positron_pos[2] += self.relative_particle_speed * 2/self.time_speed#relative_positron_speed  # Move proton1 along the positive z-axis (towards the center)
                         #self.electron_pos[2] -= self.relative_particle_speed * 2/self.time_speed#relative_electron_speed # Move proton2 along the negative z-axis
-                       
+                        if particles[0]["pos"][2] > particles[1]["pos"][2]:
+                            collided = True
                         #if self.p[2]>self.electron_pos[2]:
                         #    self.collided = True
                     Particle.draw_particles(particles) 
@@ -390,7 +391,7 @@ class Simulation():
                     if not particles_created:
                         
                         positron_pos = particles[0]["pos"]
-                        positron_pos = particles[1]["pos"]
+                        electron_pos = particles[1]["pos"]
                         particles, result_text = self.particle_generator.generate_particles(self.mode, positron_pos, electron_pos, self.relative_particle_speed,self.flash_manager,self.time_speed)
 
                         if len(particles)>0 and isinstance(particles[0], Blackhole):
@@ -424,9 +425,9 @@ class Simulation():
                             combined_mask = exploded_on_edge | fell_out_of_end
                             particles = particles[~combined_mask]
                             
-                        #Particle.draw_particles(particles)
+                        Particle.draw_particles(particles)
                             
-                        #self.flash_manager.update_and_draw()
+                        self.flash_manager.update_and_draw()
 
 
 

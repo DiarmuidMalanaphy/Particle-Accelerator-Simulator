@@ -19,6 +19,7 @@ class ParticleControlPanel():
                 self.filled = filled
                 self.time_speed = time_speed
                 self.mode = mode 
+                self.enable_fun_mode = (mode != Mode.Educational)
                 self.simulating = simulating
 
     def get_information(self):
@@ -147,6 +148,7 @@ class ParticleControlPanel():
         
         if clicked:
             if self.infinite_energy_toggle:
+                
                 self.reset_checkboxes(ticked = Toggle.LightVelocity)
                 self.relative_particle_speed = 1.0
             else:
