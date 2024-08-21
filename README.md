@@ -35,7 +35,7 @@ The project provides three separate stages for the user:
 ## Practical Requirements
 
 - Python 3.x
-- On Windows, if you encounter issues running the `run.bat` file, you may need to install C++ tools (though this shouldn't be necessary).
+- You will have to download Visual Studio C++ tools (https://github.com/bycloudai/InstallVSBuildToolsWindows).
 
 ## Installation and Setup
 

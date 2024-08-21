@@ -176,7 +176,7 @@ class Simulation():
                 positron_pos = particles[0]["pos"]
                 electron_pos = particles[1]["pos"]
                 print(mode)
-                particles, result_text = self.particle_generator.generate_particles(mode, positron_pos, electron_pos, relative_particle_speed, flash_manager,time_speed, max_particles = 1000)
+                particles, result_text = self.particle_generator.generate_particles(mode, positron_pos, electron_pos, relative_particle_speed, flash_manager,time_speed, max_particles = 100000)
                 if len(particles)>0 and isinstance(particles[0], Blackhole):
                     black_hole = True
                 #We define the collision results window
