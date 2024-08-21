@@ -73,7 +73,7 @@ class Simulation():
         self.window = self.initialize_glfw()
         
 
-        self.get_control_panel_info()
+       
        
         self.space_key_pressed = True
         self.F_key_pressed = False
@@ -83,6 +83,7 @@ class Simulation():
         self.instructions_shown = True
         
         self.control_panel = ParticleControlPanel(self.window, self.window_size)
+        self.get_control_panel_info()
         self.camera_manager = CameraManager()
         self.particle_generator = ParticleGenerator()
         self.start_simulating()
@@ -145,7 +146,7 @@ class Simulation():
                 
                 impl.process_inputs()
                 self.control_panel.draw_control_panel() 
-                self.get_control_panel_info()
+                relative_particle_speed, time_speed, mode = self.get_control_panel_info()
                 self.handle_keyboard_input()
                 if self.simulating:
                     #Essentially, if the state of simulating changes after validating keyboard inputs then we know that the simulation has been started
@@ -174,6 +175,7 @@ class Simulation():
             if self.simulating and create_particles:
                 positron_pos = particles[0]["pos"]
                 electron_pos = particles[1]["pos"]
+                print(mode)
                 particles, result_text = self.particle_generator.generate_particles(mode, positron_pos, electron_pos, relative_particle_speed, flash_manager,time_speed, max_particles = 1000)
                 if len(particles)>0 and isinstance(particles[0], Blackhole):
                     black_hole = True

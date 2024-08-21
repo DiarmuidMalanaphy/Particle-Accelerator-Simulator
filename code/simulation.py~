@@ -8,11 +8,10 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from introduction_page import IntroductionPage
 import numpy as np
-from constants import Toggle
-import particle_control_panel
+from particle_control_panel import ParticleControlPanel
 from Particles.electron import Electron
 from Particles.particle import Particle
-from constants import Toggle, Mode
+from constants import Mode
 from Particles.particlegenerator import ParticleGenerator
 from Particles.positron import Positron
 from flash import Flash
@@ -73,11 +72,8 @@ class Simulation():
         self.window_size = (1080, 900)
         self.window = self.initialize_glfw()
         
-        ## Control panel variables.
 
-        self.control_panel = self.create_control_panel()
-        self.get_control_panel_info()
-        self.camera_manager = CameraManager()
+       
        
         self.space_key_pressed = True
         self.F_key_pressed = False
@@ -85,11 +81,154 @@ class Simulation():
         self.E_key_pressed = False
         self.H_key_pressed = False
         self.instructions_shown = True
+        
+        self.control_panel = ParticleControlPanel(self.window, self.window_size)
+        self.get_control_panel_info()
+        self.camera_manager = CameraManager()
         self.particle_generator = ParticleGenerator()
         self.start_simulating()
         
-    def initialize_glfw(self):
     
+
+    def start_simulating(self):
+
+        ###   THIS WHOLE SECTION IS JUST INITIALISING THE SIMULATION
+        
+        
+        imgui.create_context()
+        impl = GlfwRenderer(self.window)
+
+        intro_page = IntroductionPage()
+        intro_page.display(impl, self.window) 
+
+        self.initialise_viewpoints() 
+        relative_particle_speed, time_speed, mode =  self.get_control_panel_info()
+
+        flash_manager = Flash()
+        
+        #Variables redefined During Simulation
+        particles, collision_results_window, post_collision,create_particles,  self.time_stop = self.restart_simulation(time_speed)
+        collision_results = None
+        particles_created = False
+        show_cylinder = True
+        self.time_stop = False
+        black_hole = False
+        collision_results_window = False
+
+        # Have to set all the checkboxes
+        
+        self.control_panel.reset_checkboxes()
+
+        
+        # Pregenerate all the stars
+        generated_stars = DrawTools.generate_stars(1000) 
+
+
+        ##### RUNNING THE SIMULATION
+       
+        while not glfw.window_should_close(self.window):
+
+            #Baseline tasks -> setting things up at the start of every frame
+            
+            imgui.new_frame()
+            glfw.poll_events()
+            if self.instructions_shown:
+                ControlInstructions.draw(self.window, self.window_size)
+            self.camera_manager.look()
+            #Drawing the background
+            glClearColor(0, 0, 0, 1.0)  # Set the background color to black
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            DrawTools.draw_stars(generated_stars)
+            if show_cylinder:
+                DrawTools.draw_cylinder(CYLINDER_RADIUS, CYLINDER_HEIGHT, filled = self.filled)
+
+            if not self.simulating:
+                
+                impl.process_inputs()
+                self.control_panel.draw_control_panel() 
+                relative_particle_speed, time_speed, mode = self.get_control_panel_info()
+                self.handle_keyboard_input()
+                if self.simulating:
+                    #Essentially, if the state of simulating changes after validating keyboard inputs then we know that the simulation has been started
+                    particles, collision_results_window, post_collision,create_particles, self.time_stop = self.restart_simulation(time_speed)
+                #Draw the stationary positrons and electrons, if you delete this section it just resets them.
+                Particle.draw_particles(particles) 
+                
+            # Simulation Logic   -> Provided the experiment has begun
+            # The experiment has 3 major stages
+                # When the particles are flying towards eachother [1](pre_collision)
+                # When the particles hit eachother and then produce particles [2](Creation)
+                # After the particles have collided and then fly off and hit the edge [3](post_collision)
+
+            # Pre Collision                  STAGE [1]
+        
+            if self.simulating and not post_collision:
+                if not post_collision:
+                    positron_pos = particles[0]["pos"]
+                    electron_pos = particles[1]["pos"]
+                    if positron_pos[2] > electron_pos[2]:
+                        post_collision = True
+                        create_particles = True
+
+            #Particle Collision and Particle creation             STAGE [2]
+
+            if self.simulating and create_particles:
+                positron_pos = particles[0]["pos"]
+                electron_pos = particles[1]["pos"]
+                print(mode)
+                particles, result_text = self.particle_generator.generate_particles(mode, positron_pos, electron_pos, relative_particle_speed, flash_manager,time_speed, max_particles = 1000)
+                if len(particles)>0 and isinstance(particles[0], Blackhole):
+                    black_hole = True
+                #We define the collision results window
+                if mode.value == Mode.Educational.value:
+                    collision_results = UtilityFunctions.get_collision_results(relative_particle_speed, result_text)
+                    collision_results_window = True
+                create_particles = False
+
+            # Particle Post Collision               STAGE [3] 
+
+            if self.simulating and post_collision:    
+                    # We slowly chip away at the number of particles left by checking if they're out of bounds
+                    if not self.time_stop and not black_hole:
+                       particles = self.remove_particles(particles, flash_manager) 
+                    # In the case of a blackhole remove it when we hit the camera
+                    if black_hole and particles[0].check_collision(self.camera_manager.camera_pos):
+                        particles = []
+                        black_hole = False
+           
+            # Particle Removal
+
+            if self.simulating and post_collision and len(particles) == 0:
+                    particles, collision_results_window, post_collision, create_particles, self.time_stop = self.restart_simulation(time_speed)
+                    self.simulating = False
+                    self.control_panel.set_simulating(value = self.simulating)
+                    collision_results_window = (mode.value == Mode.Educational.value)
+
+            # Particle Updating and movements
+            if self.simulating:                
+                if not black_hole:
+                    # This is to allow for timestops <- essentially just draw and don't update.
+                    if not self.time_stop:
+                        Particle.update_particles(particles)
+                    flash_manager.update_and_draw() 
+                    Particle.draw_particles(particles)
+                else:
+                    blackhole = particles[0]
+                    blackhole.update()
+                    blackhole.draw_particle()
+
+            self.handle_keyboard_input()
+            time.sleep(1./240.)
+            if collision_results_window and collision_results is not None:
+                CollisionResultsPage.draw(collision_results, self.window, self.window_size)
+            imgui.render()
+            impl.render(imgui.get_draw_data())
+            glfw.swap_buffers(self.window)
+        glfw.terminate()
+
+
+
+    def initialize_glfw(self):
         if not glfw.init():
             raise Exception("glfw can not be initialized!")
         
@@ -104,18 +243,10 @@ class Simulation():
 
         return window
 
-    def create_control_panel(self):
-        control_panel = particle_control_panel.ParticleControlPanel(self.window, self.window_size)
-        return control_panel
-
-
-    def reset_control_panel(self):
-        self.control_panel = particle_control_panel.ParticleControlPanel(self.window, self.window_size)
-        return  
 
     def get_control_panel_info(self):
-        self.relative_particle_speed, self.filled, self.time_speed, self.mode, self.simulating = self.control_panel.get_information()
-        return 
+        relative_particle_speed, self.filled, time_speed, mode, self.simulating = self.control_panel.get_information()
+        return (relative_particle_speed, time_speed, mode)
 
 
     
@@ -198,23 +329,25 @@ class Simulation():
 
     
            
-    def restart_simulation(self):
+    def restart_simulation(self, time_speed):
         
         
-        collided = False
+        post_collision = False
         time_stop = False
 
-        starting_particles = ParticleGenerator.build_particles_array(2, particle_dtype = Particle.get_np_type(100 * self.time_speed))
+        starting_particles = ParticleGenerator.build_particles_array(2, particle_dtype = Particle.get_np_type(100 * time_speed))
+
          
          
-        starting_particles[0] = Positron(POSITRON_STARTING_POSITION, np.asarray([0, 0, 100 ]), time_speed = self.time_speed).to_np() 
-        starting_particles[1] = Electron(ELECTRON_STARTING_POSITION, np.asarray([0, 0, -100 ]), time_speed = self.time_speed).to_np()
+        starting_particles[0] = Positron(POSITRON_STARTING_POSITION, np.asarray([0, 0, 100 ]), time_speed = time_speed).to_np() 
+        starting_particles[1] = Electron(ELECTRON_STARTING_POSITION, np.asarray([0, 0, -100 ]), time_speed = time_speed).to_np()
 
         collision_results_window = False
-        particles_created = False
+        create_particles = False
         
 
-        return starting_particles, collision_results_window, particles_created, collided, time_stop
+        return starting_particles, collision_results_window, post_collision, create_particles, time_stop
+
 
     @staticmethod
     def remove_particles(particles, flash_manager):
@@ -246,169 +379,6 @@ class Simulation():
 
     
        
-    def start_simulating(self):
-
-        ###   THIS WHOLE SECTION IS JUST INITIALISING THE SIMULATION
-        
-        
-        imgui.create_context()
-        impl = GlfwRenderer(self.window)
-
-        intro_page = IntroductionPage()
-        intro_page.display(impl, self.window) 
-
-        self.initialise_viewpoints() 
-
-
-        
-
-
-        
-
-
-        flash_manager = Flash()
-        self.get_control_panel_info()
-
-        #Defined During Simulation
-        particles, collision_results_window, particles_created, collided, self.time_stop = self.restart_simulation()
-        collision_results = None
-        particles_created = False
-        show_cylinder = True
-        self.time_stop = False
-        
-        self.control_panel.reset_checkboxes()
-
-        black_hole = False
-        collision_results_window = False
-        
-        generated_stars = DrawTools.generate_stars(1000) 
-
-
-        ##### RUNNING THE SIMULATION
-       
-        while not glfw.window_should_close(self.window):
             
-            imgui.new_frame()
-            glfw.poll_events()
-            if self.instructions_shown:
-                ControlInstructions.draw(self.window, self.window_size)
-             
-
-            
-             
-            
-            glClearColor(0, 0, 0, 1.0)  # Set the background color to black
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-           
-            self.camera_manager.look()
-
-                       
-
-            #Draw the background
-            DrawTools.draw_stars(generated_stars)
-            
-            if show_cylinder:
-                DrawTools.draw_cylinder(CYLINDER_RADIUS, CYLINDER_HEIGHT, filled = self.filled)
-            
-            
-
-            if not self.simulating:
-                
-                impl.process_inputs()
-                
-               
-                self.control_panel.draw_control_panel() 
-                self.get_control_panel_info()
-                
-                self.handle_keyboard_input()
-                
-                
-                if self.simulating:
-                    #Essentially, if the state of simulating changes after validating keyboard inputs then we know that the simulation has been started
-                    particles, collision_results_window, particles_created, collided, self.time_stop = self.restart_simulation()
-
-
-                #Draw the stationary positrons and electrons, if you delete this section it just resets them.
-                
-                Particle.draw_particles(particles) 
-                
-                
-            #If the experiment has begun 
-            if self.simulating:
-                
-                #Collided defines when the electron and the positron have collided .
-                if not collided:
-                    
-                    if particles[0]["pos"][2] > particles[1]["pos"][2]:
-                        collided = True
-                    
-                else: # If the positron and electron have collided
-                    if not particles_created:
-                        
-                        positron_pos = particles[0]["pos"]
-                        electron_pos = particles[1]["pos"]
-                        particles, result_text = self.particle_generator.generate_particles(self.mode, positron_pos, electron_pos, self.relative_particle_speed, flash_manager,self.time_speed, max_particles = 10000)
-
-                        if len(particles)>0 and isinstance(particles[0], Blackhole):
-                            black_hole = True
-
-                        particles_created = True
-                        #We define the collision results window
-                        if self.mode.value == Mode.Educational.value:
-                            collision_results = UtilityFunctions.get_collision_results(self.relative_particle_speed, result_text)
-                            collision_results_window = True
-                       
-
-
-                    else:
-                        if not self.time_stop and not black_hole:
-                           particles = self.remove_particles(particles, flash_manager) 
-                            
-                            
-
-                        if black_hole and particles[0].check_collision(self.camera_pos):
-                            particles = []
-                            black_hole = False
-
-
-                        
-                        if len(particles) == 0 and collided: # Automatically reset the chamber
-                            particles, collision_results_window, particles_created, collided, self.time_stop = self.restart_simulation()
-                            self.simulating = False
-                            self.control_panel.set_simulating(value = self.simulating)
-                            if self.mode.value == Mode.Educational.value:
-                                
-                                collision_results_window = True
-                            
-                            
-                # This is to allow for timestops <- essentially just draw and don't update.
-                if not black_hole:
-                    if not self.time_stop:
-                        Particle.update_particles(particles)
-                    flash_manager.update_and_draw() 
-                    Particle.draw_particles(particles)
-                else:
-                    blackhole = particles[0]
-                    blackhole.update()
-                    blackhole.draw_particle()
-
-                self.handle_keyboard_input()
-                time.sleep(1./240.)
-
-            time.sleep(1./240.)
-            if collision_results_window and collision_results is not None:
-                CollisionResultsPage.draw(collision_results, self.window, self.window_size)
-
-
-                
-
-            
-            imgui.render()
-            impl.render(imgui.get_draw_data())
-            glfw.swap_buffers(self.window)
-            
-
-        glfw.terminate()
-        
 if __name__ == "__main__":
     sim = Simulation()
