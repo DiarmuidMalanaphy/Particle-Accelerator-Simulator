@@ -21,8 +21,8 @@ class ParticleGenerator():
     
     def __init__(self):
         self.utility = UtilityFunctions()
-    def generate_particles(self, mode, positron_pos, electron_pos, particle_speed, flash_manager, time_speed):
-        self.particle_dtype = Particle.get_np_type(100 * time_speed)
+    def generate_particles(self, mode, positron_pos, electron_pos, particle_speed, flash_manager, time_speed, max_particles = 100):
+        self.particle_dtype = Particle.get_np_type(Particle.default_trail_length * time_speed)
 
 
         total_energy_eV, total_energy_MeV, total_energy_GeV = self.utility.calculate_total_energy(particle_speed)
@@ -33,38 +33,29 @@ class ParticleGenerator():
             return particles, result_text
         
         else:
-            particles = self.generate_fun_particles(total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager)
+            particles = self.generate_fun_particles(total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles = max_particles)
             return particles, ""
 
-    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles =  100000):
-        particle_dtype = Particle.get_np_type(100 * particle_speed)
+    def generate_fun_particles(self, total_energy_eV, particle_speed, collision_pos, time_speed, flash_manager, max_particles =  100):
+        particle_dtype = Particle.get_np_type(Particle.default_trail_length * particle_speed)
         particles = np.empty(max_particles, dtype=particle_dtype)
-    
 
         if particle_speed == 1.0:
             # Create a black hole instead of particles
             
             black_hole = Blackhole(collision_pos, 1, time_speed = time_speed)
-            particles = np.empty() 
-            return particles
-            #return [black_hole]
+            return [black_hole]
          
         for i in range(0,   max_particles):
             if np.random.rand() < 0.7:
-                particle_type = np.random.choice(["Photon","Pion", "Muon", "Squi"])
+                particle_type = np.random.choice(["Photon","Pion", "Muon"])
             else:
                 particle_type = np.random.choice(["Tau", "Gluon", "Quark", "HiggsBoson", "WBoson"], p=[0.3, 0.3, 0.3, 0.05, 0.05])
 
-            angle_xy = np.random.uniform(0, 2 * np.pi)
-            angle_z = np.random.uniform(0, np.pi)
-            speed = np.random.uniform(low = 0.2, high = 1.5, size = 3) #Do this for 3d array and initialise all directions to be 0,0,0
-
-            #Remove this
-
-            #particle_x = np.cos(angle_xy) * np.sin(angle_z) * speed
             
-            #particle_y = np.sin(angle_xy) * np.sin(angle_z) * speed
-            #particle_z = np.cos(angle_z) * speed
+            speed = np.random.uniform(low = -30, high = 30, size = 3) / time_speed #Do this for 3d array and initialise all directions to be 0,0,0
+
+
 
 
             match particle_type:
@@ -78,8 +69,6 @@ class ParticleGenerator():
                     particle = Gluon(collision_pos, speed,time_speed = time_speed)
                 case "Pion": 
                     particle = Pion(collision_pos, speed,time_speed = time_speed)
-                case "Squi":            
-                    particle = Squi(collision_pos, speed, time_speed= time_speed)
                 case "HiggsBoson":
                     particle = HiggsBoson(collision_pos, speed, time_speed= time_speed)
                 case "WBoson":
@@ -123,7 +112,7 @@ class ParticleGenerator():
 
 
     def generate_educational_particles(self,total_energy_eV, total_energy_MeV, total_energy_GeV,collision_pos, flash_manager, time_speed):
-        particle_dtype = Particle.get_np_type(100 * time_speed) 
+        particle_dtype = Particle.get_np_type(Particle.default_trail_length * time_speed) 
 
         
 
@@ -216,7 +205,7 @@ class ParticleGenerator():
             particle_speed = 1.3 # C -> the gluons are incredibly high powered (I modified it to make it cooler and make it slightly more explosive and fast)
             flash_manager.add_flash(position=collision_pos, size=2, brightness=10*particle_speed, duration=3)
 
-            particles = get_particles_array_from_directions(directions, particle_speed, Gluon, time_speed, particle_speed)
+            particles = get_particles_array_from_directions(directions, Gluon, time_speed, collision_pos, particle_speed)
             
 
         elif total_energy_GeV >= 30 and total_energy_GeV < 80:  # quark quark gluon

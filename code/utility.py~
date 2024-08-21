@@ -64,7 +64,7 @@ class UtilityFunctions():
         return(position)
 
     @staticmethod
-    def get_collision_results(relative_particle_speed, result_text):
+    def get_collision_results(relative_particle_speed):
         _, total_energy_MeV, total_energy_GeV = UtilityFunctions.calculate_total_energy(relative_particle_speed)
                             
         if total_energy_GeV < 1:

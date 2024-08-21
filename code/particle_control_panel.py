@@ -6,26 +6,33 @@ import numpy as np
 
 class ParticleControlPanel():
     
-    def __init__(self,window, window_size, relative_particle_speed = 0.9, filled = False, time_speed = 1, mode = Mode.Educational, simulating = False):
+    def __init__(self,window, window_size, relative_particle_speed = 0.9, filled = False, time_speed = 6, mode = Mode.Educational, simulating = False):
                 self.window = window
                 self.window_size = window_size
-                self.slider = LogarithmicSlider( 
-                    "Particle Speed",
-                    value = relative_particle_speed
-                    )
-                # These are the values we're looking to extract from this panel.
-
+               
+                self.updated = False
+                # These values below are the values we're looking to extract from this panel.
                 self.relative_particle_speed = relative_particle_speed
                 self.filled = filled
                 self.time_speed = time_speed
                 self.mode = mode 
                 self.enable_fun_mode = (mode != Mode.Educational)
                 self.simulating = simulating
+                self.update_slider()
+                
 
     def get_information(self):
-
         return self.relative_particle_speed, self.filled, self.time_speed, self.mode, self.simulating
-                
+              
+    def update_slider(self):
+        self.slider = LogarithmicSlider( 
+                    "Particle Speed",
+                    value = self.relative_particle_speed
+                    
+                    )
+
+    def set_simulating(self, value = False):
+        self.simulating = value
 
     def reset_checkboxes(self,ticked = None):
         
@@ -100,6 +107,7 @@ class ParticleControlPanel():
             formatted_time_speed = f"Time Modifier {percentage}%"
         imgui.push_item_width(240)
         changed, self.time_speed = imgui.slider_int(formatted_time_speed, self.time_speed, 1, 11)
+        
         imgui.pop_item_width()
         
         
@@ -118,6 +126,7 @@ class ParticleControlPanel():
                 self.relative_particle_speed = 0.999999991
             else:
                 self.relative_particle_speed = 0.9
+
 
         
         clicked, self.synchotron_velocity_toggle = draw_checkbox_with_tooltip("Velocity of Synchotron",self.synchotron_velocity_toggle,"Velocity achieved by the Synchotron, the earliest collider at CERN")
@@ -249,12 +258,12 @@ class ParticleControlPanel():
         imgui.set_column_width(1, 200)  # Adjust the middle column where the button will be
 
         # Set the button size
-        if imgui.button("Start Simulation", width=200, height=40):  # Adjust width and height as needed
+        if imgui.button("Start Simulation", width=200, height=40): 
             self.simulating = True
 
         
 
-        
+        self.update_slider()
         imgui.columns(1)
         imgui.end()
 

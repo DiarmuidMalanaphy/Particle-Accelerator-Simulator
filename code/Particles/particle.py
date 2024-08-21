@@ -18,10 +18,11 @@ class Particle:
         If you don't want a trail you can either set trail_length to be 0 or set istrail to be False - setting trail to false is more efficient.
 
     """
-
+    default_trail_length = 20
 
     @staticmethod
-    def get_np_type(trail_length: int):
+    def get_np_type(trail_length: int = default_trail_length):
+
         np_trail_length = np.int64(int(trail_length + 1))
         np_type = np.dtype([
 
@@ -41,7 +42,7 @@ class Particle:
         return np_type
 
 
-    def __init__(self,coordinate,colour,radius,speed,weight = 1, trail_length = 100, istrail = True,isParticle = True,charge = 0,time_speed = 1):
+    def __init__(self,coordinate,colour,radius,speed,weight = 1, trail_length = default_trail_length, istrail = True,isParticle = True,charge = 0,time_speed = 1):
         x,y,z = coordinate
         self.pos = np.array([x, y, z])
         self.speed = speed
@@ -61,11 +62,13 @@ class Particle:
     @staticmethod
     def update_particles(particles):
         current_time = time.time()
-        delta_time = current_time - particles['last_update_time']
-        
-        particles['pos'] += particles['speed'] * 5 / particles['time_speed'][:, np.newaxis] * delta_time[:, np.newaxis]
+        delta_time = np.minimum( 0.2, current_time - particles['last_update_time'])
+         
+       
+        particles['pos'] += particles['speed'] / particles['time_speed'][:, np.newaxis] * delta_time[:, np.newaxis]
         
         particles['last_update_time'] = current_time
+
 
         mask = particles['istrail']
 
@@ -128,7 +131,6 @@ class Particle:
         particle_np = np.zeros(1, dtype=particle_dtype)
 
         # Populate the fields with the values from the Particle instance
-        print(f"Speed, {self.speed}")
         particle_np['pos'][0] = self.pos
         particle_np['speed'][0] = np.full((3,), self.speed)
         particle_np['colour'][0] = self.colour

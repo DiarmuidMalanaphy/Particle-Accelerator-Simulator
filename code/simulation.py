@@ -18,6 +18,7 @@ from Particles.positron import Positron
 from flash import Flash
 
 from Particles.blackhole import Blackhole
+from camera_manager import CameraManager
 
 
 import imgui
@@ -41,9 +42,6 @@ from utility import UtilityFunctions
 """
 
 
-STARTING_EYE_POSITION = (3.0, 3.0, 25.0)
-STARTING_CENTRE_POSITION = (0.0, 0.0, 0.0)
-STARTING_UP_DIRECTION = (0.0, 1.0, 0.0)
 
 CYLINDER_RADIUS = 5
 CYLINDER_HEIGHT = 100
@@ -79,14 +77,14 @@ class Simulation():
 
         self.control_panel = self.create_control_panel()
         self.get_control_panel_info()
+        self.camera_manager = CameraManager()
        
-        self.space_key_pressed = False
+        self.space_key_pressed = True
         self.F_key_pressed = False
         self.R_key_pressed = False
         self.E_key_pressed = False
         self.H_key_pressed = False
         self.instructions_shown = True
-        self.utility = UtilityFunctions()
         self.particle_generator = ParticleGenerator()
         self.start_simulating()
         
@@ -117,7 +115,6 @@ class Simulation():
 
     def get_control_panel_info(self):
         self.relative_particle_speed, self.filled, self.time_speed, self.mode, self.simulating = self.control_panel.get_information()
-        print(self.relative_particle_speed)
         return 
 
 
@@ -125,40 +122,25 @@ class Simulation():
     def handle_keyboard_input(self):
         # Update camera position with arrow keys
         if glfw.get_key(self.window, glfw.KEY_UP) == glfw.PRESS:
-            self.camera_pos += self.camera_front * self.camera_position_speed
+            self.camera_manager.move_camera_up()
         if glfw.get_key(self.window, glfw.KEY_DOWN) == glfw.PRESS:
-            self.camera_pos -= self.camera_front * self.camera_position_speed
+            self.camera_manager.move_camera_down()
         if glfw.get_key(self.window, glfw.KEY_LEFT) == glfw.PRESS:
-            self.camera_pos -= np.cross(self.camera_front, self.camera_up) * self.camera_position_speed
+            self.camera_manager.move_camera_left()
         if glfw.get_key(self.window, glfw.KEY_RIGHT) == glfw.PRESS:
-            self.camera_pos += np.cross(self.camera_front, self.camera_up) * self.camera_position_speed
-        #if glfw.get_key(window, glfw.KEY_SPACE) == glfw.PRESS:
-        #    camera_pos += camera_up * position_speed
+            self.camera_manager.move_camera_right()
         if glfw.get_key(self.window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS:
-            self.camera_pos -= self.camera_up * self.camera_position_speed
-
+            self.camera_manager.move_camera_krs()
         if glfw.get_key(self.window, glfw.KEY_W) == glfw.PRESS:
-            pitch = np.radians(self.camera_angle_speed)
-            self.camera_front = self.rotate_vector(self.camera_front, pitch, np.cross(self.camera_front, self.camera_up))
-            self.camera_up = np.cross(np.cross(self.camera_front, self.camera_up), self.camera_front)
+            self.camera_manager.tilt_camera_forward()
         if glfw.get_key(self.window, glfw.KEY_S) == glfw.PRESS:
-            pitch = np.radians(-self.camera_angle_speed)
-            self.camera_front = self.rotate_vector(self.camera_front, pitch, np.cross(self.camera_front, self.camera_up))
-            self.camera_up = np.cross(np.cross(self.camera_front, self.camera_up), self.camera_front)
-        
+            self.camera_manager.tilt_camera_backward()
         if glfw.get_key(self.window, glfw.KEY_A) == glfw.PRESS:
-            yaw = np.radians(self.camera_angle_speed)
-            self.camera_front = self.rotate_vector(self.camera_front, yaw, self.camera_up)
+            self.camera_manager.tilt_camera_left()
         if glfw.get_key(self.window, glfw.KEY_D) == glfw.PRESS:
-            yaw = np.radians(-self.camera_angle_speed)
-            self.camera_front = self.rotate_vector(self.camera_front, yaw, self.camera_up)
+            self.camera_manager.tilt_camera_right()       
         
-        
-        angle_range = 1.0 #There's more viewing range but it hates you using it
-        self.camera_front[0] = (self.camera_front[0] + angle_range) % (2 * angle_range) - angle_range
-        self.camera_front[1] = max(-angle_range, min(angle_range, self.camera_front[1]))
-
-        self.camera_front = self.camera_front / np.linalg.norm(self.camera_front)
+       
 
         #TimeStop and restarting experiment 
 
@@ -166,7 +148,7 @@ class Simulation():
         #Starts the experiment
         if glfw.get_key(self.window, glfw.KEY_SPACE) == glfw.PRESS and not self.space_key_pressed:
             self.simulating = not self.simulating
-            print("Pi")
+            self.control_panel.set_simulating(value = self.simulating)
             self.space_key_pressed = True
         if glfw.get_key(self.window, glfw.KEY_SPACE) == glfw.RELEASE:
             self.space_key_pressed = False
@@ -181,10 +163,7 @@ class Simulation():
 
         
         if glfw.get_key(self.window, glfw.KEY_R) == glfw.PRESS and not self.R_key_pressed:
-            self.eye_x, self.eye_y, self.eye_z = STARTING_EYE_POSITION # Position the camera slightly off-center and tilted
-            self.center_x, self.center_y, self.center_z = STARTING_CENTRE_POSITION  # Look towards the center of the cylinder
-            self.up_x, self.up_y, self.up_z = STARTING_UP_DIRECTION
-            self.set_up_camera()
+            self.camera_manager.reset_camera()
             self.R_key_pressed = True
         if glfw.get_key(self.window, glfw.KEY_R) == glfw.RELEASE:
             self.R_key_pressed = False
@@ -212,23 +191,13 @@ class Simulation():
         if glfw.get_key(self.window, glfw.KEY_F) == glfw.RELEASE:
             self.F_key_pressed = False
 
-    def rotate_vector(self, vector, angle, axis):
-        cos_angle = np.cos(angle)
-        sin_angle = np.sin(angle)
-        return vector * cos_angle + np.cross(axis, vector) * sin_angle + axis * np.dot(axis, vector) * (1 - cos_angle)
+   
 
     
     
 
     
-    def set_up_camera(self):
-        self.camera_pos = np.array([self.eye_x, self.eye_y, self.eye_z], dtype=np.float32)
-        self.camera_front = np.array([self.center_x - self.eye_x, self.center_y - self.eye_y, self.center_z - self.eye_z], dtype=np.float32)
-        self.camera_front = self.camera_front / np.linalg.norm(self.camera_front)
-        self.camera_up = np.array([self.up_x, self.up_y, self.up_z], dtype=np.float32)
-        self.camera_position_speed = 0.3
-        self.camera_angle_speed = 1
-        
+           
     def restart_simulation(self):
         
         
@@ -238,8 +207,8 @@ class Simulation():
         starting_particles = ParticleGenerator.build_particles_array(2, particle_dtype = Particle.get_np_type(100 * self.time_speed))
          
          
-        starting_particles[0] = Positron(POSITRON_STARTING_POSITION, np.asarray([0, 0, 10])).to_np() 
-        starting_particles[1] = Electron(ELECTRON_STARTING_POSITION, np.asarray([0, 0, -10])).to_np()
+        starting_particles[0] = Positron(POSITRON_STARTING_POSITION, np.asarray([0, 0, 100 ]), time_speed = self.time_speed).to_np() 
+        starting_particles[1] = Electron(ELECTRON_STARTING_POSITION, np.asarray([0, 0, -100 ]), time_speed = self.time_speed).to_np()
 
         collision_results_window = False
         particles_created = False
@@ -247,19 +216,19 @@ class Simulation():
 
         return starting_particles, collision_results_window, particles_created, collided, time_stop
 
-       
-    def start_simulating(self):
+    @staticmethod
+    def remove_particles(particles, flash_manager):
+        exploded_on_edge, fell_out_of_end = Particle.is_removed(particles, CYLINDER_RADIUS= CYLINDER_RADIUS, CYLINDER_HEIGHT= CYLINDER_HEIGHT)
+        if np.any(exploded_on_edge):
+            exploded_particles = particles[exploded_on_edge]
+            for particle in exploded_particles:
+                flash_manager.add_flash(position=particle['pos'], size=0.3, brightness=1, duration=2)
+        combined_mask = exploded_on_edge | fell_out_of_end
+        particles = particles[~combined_mask]
+        return particles
 
-        ###   THIS WHOLE SECTION IS JUST INITIALISING THE SIMULATION
-        
-        #self.black_hole_animation = BlackHoleAnimation("blackhole.glb")
-        
-        imgui.create_context()
-        impl = GlfwRenderer(self.window)
-
-        intro_page = IntroductionPage()
-        intro_page.display(impl, self.window) 
-
+    @staticmethod
+    def initialise_viewpoints():
         glEnable(GL_DEPTH_TEST)  # Enable depth testing for 3D rendering
         glEnable(GL_BLEND)  # Enable blending for transparency
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)  # Set blending function
@@ -275,37 +244,38 @@ class Simulation():
         gluPerspective(60, (720 / 600), 0.1, 100.0)  # Increase the far clipping plane distance
         glMatrixMode(GL_MODELVIEW)
 
+    
+       
+    def start_simulating(self):
+
+        ###   THIS WHOLE SECTION IS JUST INITIALISING THE SIMULATION
+        
+        
+        imgui.create_context()
+        impl = GlfwRenderer(self.window)
+
+        intro_page = IntroductionPage()
+        intro_page.display(impl, self.window) 
+
+        self.initialise_viewpoints() 
+
 
         
 
-        # Set camera position and orientation (inside the cylinder, looking towards the center)
-        self.eye_x, self.eye_y, self.eye_z = STARTING_EYE_POSITION # Position the camera slightly off-center and tilted
-        
-        self.center_x, self.center_y, self.center_z = STARTING_CENTRE_POSITION  # Look towards the center of the cylinder
-        self.up_x, self.up_y, self.up_z = STARTING_UP_DIRECTION # Set the up direction
-        #gluLookAt(self.eye_x, self.eye_y, self.eye_z, self.center_x, self.center_y, self.center_z, self.up_x, self.up_y, self.up_z)
-        self.set_up_camera()
 
         
 
 
-        self.flash_manager = Flash()
-        #reset_control_panel_stuff
-        self.relative_particle_speed = 0.9
-        self.simulating = False
-        self.enable_fun_mode = False
-        self.filled = False
-        self.time_speed = 6
+        flash_manager = Flash()
         self.get_control_panel_info()
 
         #Defined During Simulation
-        particles, collision_results_window, particles_created, collided, time_stop = self.restart_simulation()
+        particles, collision_results_window, particles_created, collided, self.time_stop = self.restart_simulation()
         collision_results = None
-
         particles_created = False
         show_cylinder = True
+        self.time_stop = False
         
-        time_stop = False
         self.control_panel.reset_checkboxes()
 
         black_hole = False
@@ -315,7 +285,7 @@ class Simulation():
 
 
         ##### RUNNING THE SIMULATION
-        
+       
         while not glfw.window_should_close(self.window):
             
             imgui.new_frame()
@@ -329,14 +299,10 @@ class Simulation():
             
             glClearColor(0, 0, 0, 1.0)  # Set the background color to black
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            
+           
+            self.camera_manager.look()
 
-            glLoadIdentity()
-            
-            gluLookAt(self.camera_pos[0], self.camera_pos[1], self.camera_pos[2],
-                    self.camera_pos[0] + self.camera_front[0], self.camera_pos[1] + self.camera_front[1], self.camera_pos[2] + self.camera_front[2],
-                    self.camera_up[0], self.camera_up[1], self.camera_up[2])
-            
+                       
 
             #Draw the background
             DrawTools.draw_stars(generated_stars)
@@ -345,54 +311,43 @@ class Simulation():
                 DrawTools.draw_cylinder(CYLINDER_RADIUS, CYLINDER_HEIGHT, filled = self.filled)
             
             
-            
 
             if not self.simulating:
                 
                 impl.process_inputs()
+                
                
                 self.control_panel.draw_control_panel() 
                 self.get_control_panel_info()
                 
                 self.handle_keyboard_input()
                 
+                
                 if self.simulating:
                     #Essentially, if the state of simulating changes after validating keyboard inputs then we know that the simulation has been started
-                    particles, collision_results_window, particles_created, collided, time_stop = self.restart_simulation()
+                    particles, collision_results_window, particles_created, collided, self.time_stop = self.restart_simulation()
 
 
-                #Draw the stationary positrons and electrons, if you delete this section it just resets them.  
+                #Draw the stationary positrons and electrons, if you delete this section it just resets them.
+                
                 Particle.draw_particles(particles) 
                 
                 
             #If the experiment has begun 
             if self.simulating:
-
+                
                 #Collided defines when the electron and the positron have collided .
                 if not collided:
                     
-                    # This is to allow for timestops <- essentially just draw and don't update.
-                    if not time_stop:
-                        Particle.update_particles(particles) ####################WORRY ZONE, i'm not sure if this will actually work because i've forgot how speed works
-                        ##We should likely redefine how speed works to make it how quick it moves in each plane ?
-                        #positron.update(self.positron_pos)
-                        #electron.update(self.electron_pos)
-                        ## Convert this logic to the np form.
-                        #print(f"Positron Position {particles[0]['pos']}\n")
-                        #self.positron_pos[2] += self.relative_particle_speed * 2/self.time_speed#relative_positron_speed  # Move proton1 along the positive z-axis (towards the center)
-                        #self.electron_pos[2] -= self.relative_particle_speed * 2/self.time_speed#relative_electron_speed # Move proton2 along the negative z-axis
-                        if particles[0]["pos"][2] > particles[1]["pos"][2]:
-                            collided = True
-                        #if self.p[2]>self.electron_pos[2]:
-                        #    self.collided = True
-                    Particle.draw_particles(particles) 
+                    if particles[0]["pos"][2] > particles[1]["pos"][2]:
+                        collided = True
                     
                 else: # If the positron and electron have collided
                     if not particles_created:
                         
                         positron_pos = particles[0]["pos"]
                         electron_pos = particles[1]["pos"]
-                        particles, result_text = self.particle_generator.generate_particles(self.mode, positron_pos, electron_pos, self.relative_particle_speed,self.flash_manager,self.time_speed)
+                        particles, result_text = self.particle_generator.generate_particles(self.mode, positron_pos, electron_pos, self.relative_particle_speed, flash_manager,self.time_speed, max_particles = 10000)
 
                         if len(particles)>0 and isinstance(particles[0], Blackhole):
                             black_hole = True
@@ -400,55 +355,45 @@ class Simulation():
                         particles_created = True
                         #We define the collision results window
                         if self.mode.value == Mode.Educational.value:
-                            _, total_energy_MeV, total_energy_GeV = self.utility.calculate_total_energy(self.relative_particle_speed)
-                            
-                            if total_energy_GeV < 1:
-                                energy_text = f"{total_energy_MeV:.2f} MeV"
-                            else:
-                                energy_text = f"{total_energy_GeV:.2f} GeV"
-                            
-                            collision_results = {
-                                "energy_text": energy_text,
-                                "result_text": result_text
-                            }
+                            collision_results = UtilityFunctions.get_collision_results(self.relative_particle_speed, result_text)
                             collision_results_window = True
+                       
+
 
                     else:
-                        if not time_stop:
+                        if not self.time_stop and not black_hole:
+                           particles = self.remove_particles(particles, flash_manager) 
                             
-                            Particle.update_particles(particles)
-                            exploded_on_edge, fell_out_of_end = Particle.is_removed(particles, CYLINDER_RADIUS= CYLINDER_RADIUS, CYLINDER_HEIGHT= CYLINDER_HEIGHT)
-                            if np.any(exploded_on_edge):
-                                exploded_particles = particles[exploded_on_edge]
-                                for particle in exploded_particles:
-                                    self.flash_manager.add_flash(position=particle['pos'], size=0.3, brightness=1, duration=2)
-                            combined_mask = exploded_on_edge | fell_out_of_end
-                            particles = particles[~combined_mask]
                             
-                        Particle.draw_particles(particles)
-                            
-                        self.flash_manager.update_and_draw()
 
-
-
-                        if black_hole and particle.check_collision(self.camera_pos):
-                            #print("Camera consumed by the black hole!")
+                        if black_hole and particles[0].check_collision(self.camera_pos):
                             particles = []
                             black_hole = False
-                            #black_hole.play_animation(self.window)
 
 
                         
                         if len(particles) == 0 and collided: # Automatically reset the chamber
-                            particles, collision_results_window, particles_created, collided, time_stop = self.restart_simulation()
+                            particles, collision_results_window, particles_created, collided, self.time_stop = self.restart_simulation()
                             self.simulating = False
+                            self.control_panel.set_simulating(value = self.simulating)
                             if self.mode.value == Mode.Educational.value:
+                                
                                 collision_results_window = True
                             
                             
-                       
+                # This is to allow for timestops <- essentially just draw and don't update.
+                if not black_hole:
+                    if not self.time_stop:
+                        Particle.update_particles(particles)
+                    flash_manager.update_and_draw() 
+                    Particle.draw_particles(particles)
+                else:
+                    blackhole = particles[0]
+                    blackhole.update()
+                    blackhole.draw_particle()
+
                 self.handle_keyboard_input()
-                time.sleep(1./240.)
+
             time.sleep(1./240.)
             if collision_results_window and collision_results is not None:
                 CollisionResultsPage.draw(collision_results, self.window, self.window_size)
